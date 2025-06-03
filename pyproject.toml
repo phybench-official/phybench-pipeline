@@ -1,0 +1,11 @@
+[project]
+name = "phybench-pipeline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiofiles>=24.1.0",
+    "openai>=1.83.0",
+    "tqdm>=4.67.1",
+]

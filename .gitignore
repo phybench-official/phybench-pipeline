@@ -1,0 +1,32 @@
+# IDE and editor files
+.history/
+.vscode/
+.idea/
+
+# Python virtual environments
+.venv/
+venv/
+.env
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Package manager files
+uv.lock
+
+# Configuration with sensitive data
+config.ini
+
+# Output and result files
+*.json
+test_results/
+solutions/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

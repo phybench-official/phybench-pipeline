@@ -1,0 +1,13 @@
+\frac{\lambda}{d \sum_{j=0}^{N-1} \frac{1}{v + jD}}
+d = -\frac{\lambda}{2\pi \sin\theta} \frac{d\Phi}{d\theta}
+\frac{σV(b-a)}{θ₀}
+f(z) = A\pi(1-\beta^2)\int_{\tan^{-1}(R/z)}^{\pi/2}\frac{\sin\theta}{(1-\beta\cos\theta)^2}e^{-(z-R\cot\theta)/(v\tau)}d\theta
+m = \frac{2xCT_0(v_{气} - v_{液})P_{乙}[M + \rho_{乙}(V - V_0)]}{\rho_{乙}LV_0L_{乙}L_{水}}
+30°
+t = \int_{R}^{R+h} \frac{dr}{\sqrt{v_0^2\left(1 - \frac{(R + h)^2}{r^2}\right) + 2GM\left(\frac{1}{r} - \frac{1}{R + h}\right)}}
+T(\theta) = T_0 \exp\left(\mu ab \int_{\theta_0}^{\theta} \frac{d\phi}{\sqrt{a^2\sin^2\phi + b^2\cos^2\phi}}\right)
+E_n = \begin{cases} 
+n + \frac{1}{2} & \text{for odd } n \\
+n + \frac{1}{2} + \frac{\alpha}{\sqrt{\pi}} \frac{\binom{n}{n/2}}{2^{3n/2}} & \text{for even } n
+\end{cases}
+\frac{dQ^*}{dt} = \frac{Qw}{R^2 \ln(R/r_0)} \exp\left(\frac{2Q^* \ln(R/r_0)}{Q}\right) \left[\frac{U_0}{\ln(R/r_0)} + \frac{Q^*}{2\pi\varepsilon}\right]

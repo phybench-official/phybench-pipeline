@@ -1,0 +1,4 @@
+Bootstrap.py是我算这玩意的文件
+其实原理就是反正我跑分输出的data自带距离和tree_dist，那我就干脆直接用这个去算改了斜率的分数
+
+有用的输出结果在robustness_discount.json里面
