@@ -30,7 +30,7 @@ from openai import AsyncOpenAI # Needed for type hint
 APP_CONFIG: Optional[AppConfig] = None
 
 # Queues for inter-thread communication - size will be set from APP_CONFIG
-task_queue: "queue.Queue[Optional[Dict[str, Any]]]" 
+task_queue: "queue.Queue[Optional[Dict[str, Any]]]"
 result_queue: "queue.Queue[Optional[Dict[str, Any]]]"
 
 
@@ -60,14 +60,27 @@ def is_error_solution(solution: Dict[str, Any]) -> bool:
         True if the solution contains an error message, False otherwise.
     """
     sol_text: Optional[Any] = solution.get("solution") # Can be str or None
+    
     # Check if sol_text is a string and starts with "Error"
-    return isinstance(sol_text, str) and sol_text.startswith("Error")
+    if isinstance(sol_text, str) and sol_text.startswith("Error"):
+        return True
+    
+    # Check if explicit error field exists
+    if solution.get("error"):
+        return True
+    
+    # Check if solution is empty but should have content
+    if not sol_text or (isinstance(sol_text, str) and sol_text.strip() == ""):
+        return True
+        
+    return False
 
 
 def producer(
     problems: List[Dict[str, Any]],
     model: str,
     repeat_times: int,
+    output_file: Path,
     pbar_desc: str = "Producing tasks"
 ) -> None:
     """
@@ -77,18 +90,48 @@ def producer(
         problems: A list of problem dictionaries.
         model: The model name to use for these tasks.
         repeat_times: How many times each problem should be processed.
+        output_file: Path to output file for checking existing solutions.
         pbar_desc: Description for the tqdm progress bar.
     """
     if not problems:
         print("Producer: No problems to produce.")
         return
+    
+    # Check existing solutions to avoid duplicates
+    print("🔍 Checking for existing solutions to avoid duplicates...")
+    completed_tasks = check_existing_solutions(output_file)
+    completed_for_model = completed_tasks.get(model, set())
+    
+    # Calculate total tasks and filter out completed ones
+    total_possible_tasks = len(problems) * repeat_times
+    tasks_to_add = []
+    skipped_count = 0
+    
+    for repeat_idx in range(repeat_times):
+        for problem in problems:
+            problem_id = problem.get("id")
+            
+            # Skip if this problem/model combination is already completed
+            if problem_id in completed_for_model:
+                skipped_count += 1
+                continue
+                
+            tasks_to_add.append({"problem": problem, "model": model, "repeat_idx": repeat_idx})
+    
+    print(f"📊 Task Summary:")
+    print(f"  - Total possible tasks: {total_possible_tasks}")
+    print(f"  - Already completed: {skipped_count}")
+    print(f"  - Tasks to process: {len(tasks_to_add)}")
+    
+    if not tasks_to_add:
+        print("✅ All tasks already completed. Nothing to process.")
+        return
         
-    with tqdm(total=len(problems) * repeat_times, desc=pbar_desc, unit="task") as pbar:
-        for repeat_idx in range(repeat_times):
-            for problem in problems:
-                task = {"problem": problem, "model": model, "repeat_idx": repeat_idx}
-                task_queue.put(task)
-                pbar.update(1)
+    with tqdm(total=len(tasks_to_add), desc=pbar_desc, unit="task") as pbar:
+        for task in tasks_to_add:
+            task_queue.put(task)
+            pbar.update(1)
+            
     print("Producer: Finished enqueuing all tasks.")
 
 
@@ -100,7 +143,7 @@ async def consumer_task_processor(
     """
     Continuously fetches tasks from task_queue, processes them using generate_solution_data,
     retries on failure, and puts successful or final-error results onto result_queue.
-    This is the core async part of a consumer thread.
+    Enhanced version with structured error handling and progressive retry delays.
 
     Args:
         client: An active AsyncOpenAI client.
@@ -114,28 +157,88 @@ async def consumer_task_processor(
             break
 
         problem_id = task_info["problem"].get("id", "UnknownID")
+        model_name = task_info["model"]
         current_solution: Optional[Dict[str, Any]] = None
+        last_error = None
 
         for attempt in range(max_retries):
-            # Use the centralized generate_solution_data function
-            current_solution = await generate_solution_data(
-                async_client_instance=client, # Pass the client
-                problem=task_info["problem"],
-                model=task_info["model"],
-                repeat_idx=task_info["repeat_idx"],
-                timeout=chat_timeout
-            )
+            try:
+                # Use the centralized generate_solution_data function
+                current_solution = await generate_solution_data(
+                    async_client_instance=client, # Pass the client
+                    problem=task_info["problem"],
+                    model=task_info["model"],
+                    repeat_idx=task_info["repeat_idx"],
+                    timeout=chat_timeout
+                )
 
-            if not is_error_solution(current_solution):
-                result_queue.put(current_solution)
-                break  # Success, exit retry loop
-            else:
-                print(f"Task for problem {problem_id} (model {task_info['model']}) failed attempt {attempt + 1}/{max_retries}. Error: {current_solution.get('solution')}")
+                if not is_error_solution(current_solution):
+                    result_queue.put(current_solution)
+                    break  # Success, exit retry loop
+                else:
+                    # Enhanced error information extraction
+                    error_info = current_solution.get("solution", "Unknown error")
+                    last_error = error_info
+                    
+                    print(f"Task for problem {problem_id} (model {model_name}) failed attempt {attempt + 1}/{max_retries}. Error: {error_info}")
+                    
+                    if attempt < max_retries - 1:
+                        # Progressive retry delay: 1s, 2s, 4s, etc.
+                        delay = 2 ** attempt  # Exponential backoff
+                        await asyncio.sleep(delay)
+                    else: 
+                        # Last attempt failed - create structured error solution
+                        print(f"Task for problem {problem_id} (model {model_name}) failed after {max_retries} attempts. Storing structured error result.")
+                        
+                        # Create enhanced error solution with metadata
+                        structured_error_solution = {
+                            "id": problem_id,
+                            "model": model_name,
+                            "solution": f"Error after {max_retries} attempts: {last_error}",
+                            "answer": "",
+                            "time_taken": current_solution.get("time_taken", 0.0),
+                            "repeat_idx": task_info["repeat_idx"],
+                            "tokens": current_solution.get("tokens", {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}),
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "error": last_error,
+                            "error_metadata": {
+                                "max_retries": max_retries,
+                                "failed_attempts": max_retries,
+                                "final_attempt_error": last_error,
+                                "error_type": "max_retries_exceeded"
+                            }
+                        }
+                        
+                        result_queue.put(structured_error_solution)
+                        
+            except Exception as e:
+                last_error = f"Unexpected error in consumer: {type(e).__name__}: {e}"
+                print(f"Unexpected error processing problem {problem_id} (attempt {attempt + 1}/{max_retries}): {last_error}")
+                
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(1 + attempt) # Brief exponential backoff
-                else: # Last attempt failed
-                    print(f"Task for problem {problem_id} (model {task_info['model']}) failed after {max_retries} attempts. Storing error result.")
-                    result_queue.put(current_solution) # Put the error result on the queue
+                    delay = 2 ** attempt  # Exponential backoff
+                    await asyncio.sleep(delay)
+                else:
+                    # Create emergency error solution
+                    emergency_error_solution = {
+                        "id": problem_id,
+                        "model": model_name,
+                        "solution": f"Critical error after {max_retries} attempts: {last_error}",
+                        "answer": "",
+                        "time_taken": 0.0,
+                        "repeat_idx": task_info["repeat_idx"],
+                        "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "error": last_error,
+                        "error_metadata": {
+                            "max_retries": max_retries,
+                            "failed_attempts": max_retries,
+                            "final_attempt_error": last_error,
+                            "error_type": "critical_exception"
+                        }
+                    }
+                    
+                    result_queue.put(emergency_error_solution)
 
         task_queue.task_done()
 
@@ -170,20 +273,62 @@ def run_consumer_loop(
 
 def sync_write_solutions(solutions: List[Dict[str, Any]], output_file: Path) -> None:
     """
-    Synchronously writes a list of solution dictionaries to a JSON file.
-    This function will overwrite the existing file with the new list of solutions.
+    Synchronously writes a list of solution dictionaries to a JSON file with backup/recovery mechanism.
+    Enhanced version with backup creation and error recovery.
 
     Args:
         solutions: A list of solution dictionaries (representing the entire dataset to be written).
         output_file: The path to the output JSON file.
     """
-    try:
-        # Ensure the directory exists
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(solutions, f, indent=4, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error writing solutions: {e} to file {output_file}")
+    max_retries = 3
+    
+    for attempt in range(max_retries):
+        try:
+            # Ensure the directory exists
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Create backup if file exists
+            backup_file = output_file.with_suffix(f"{output_file.suffix}.backup")
+            if output_file.exists():
+                try:
+                    import shutil
+                    shutil.copy2(output_file, backup_file)
+                except Exception:
+                    pass  # Backup failure doesn't affect main flow
+            
+            # Write solutions to file
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(solutions, f, indent=4, ensure_ascii=False)
+            
+            # Verify write was successful
+            try:
+                with open(output_file, "r", encoding="utf-8") as f:
+                    json.load(f)  # Verify JSON format is correct
+                print(f"✅ Successfully wrote {len(solutions)} solutions to {output_file}")
+                return
+            except Exception:
+                if attempt < max_retries - 1:
+                    print(f"⚠️  Write verification failed, retrying {attempt + 1}/{max_retries}")
+                    time.sleep(0.5)
+                    continue
+                else:
+                    raise
+                    
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠️  Write failed, retrying {attempt + 1}/{max_retries}: {e}")
+                time.sleep(1)
+            else:
+                print(f"❌ Error writing solutions (final failure): {e}")
+                # Try to write to emergency backup file
+                emergency_file = output_file.with_suffix(f"{output_file.suffix}.emergency_{int(time.time())}")
+                try:
+                    with open(emergency_file, "w", encoding="utf-8") as f:
+                        json.dump(solutions, f, indent=4, ensure_ascii=False)
+                    print(f"🆘 Written to emergency backup: {emergency_file}")
+                except Exception:
+                    print(f"💥 Emergency backup failed")
+                break
 
 
 def result_writer(
@@ -227,7 +372,16 @@ def result_writer(
     # Given current single final save, buffer isn't strictly for batch *writing*.
     current_run_buffer: List[Dict[str, Any]] = [] 
     
+    # Enhanced statistics tracking
     processed_count = 0
+    success_count = 0
+    error_count = 0
+    total_time = 0.0
+    total_tokens = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    error_types = {}
+    success_rate = 0.0
+    avg_time = 0.0
+    
     with tqdm(total=total_tasks_expected, desc=pbar_desc, unit="result") as pbar:
         while True:
             try:
@@ -247,7 +401,41 @@ def result_writer(
                 break
 
             current_run_buffer.append(result)
-            processed_count +=1
+            processed_count += 1
+            
+            # Enhanced statistics tracking
+            is_error = is_error_solution(result)
+            if is_error:
+                error_count += 1
+                # Track error types
+                if "error_metadata" in result and "error_type" in result["error_metadata"]:
+                    error_type = result["error_metadata"]["error_type"]
+                    error_types[error_type] = error_types.get(error_type, 0) + 1
+                status_icon = "❌"
+            else:
+                success_count += 1
+                status_icon = "✅"
+            
+            # Track timing and token usage
+            time_taken = result.get("time_taken", 0.0)
+            total_time += time_taken
+            
+            tokens = result.get("tokens", {})
+            if isinstance(tokens, dict):
+                total_tokens["prompt_tokens"] += tokens.get("prompt_tokens", 0)
+                total_tokens["completion_tokens"] += tokens.get("completion_tokens", 0) 
+                total_tokens["total_tokens"] += tokens.get("total_tokens", 0)
+            
+            # Calculate real-time statistics
+            success_rate = (success_count / processed_count) * 100 if processed_count > 0 else 0
+            avg_time = total_time / processed_count if processed_count > 0 else 0
+            
+            # Enhanced progress bar description with real-time stats
+            problem_id = result.get("id", "?")
+            model = result.get("model", "?")
+            pbar.set_description(
+                f"{status_icon} P{problem_id} | Success: {success_rate:.1f}% | Avg: {avg_time:.1f}s | Tokens: {total_tokens['total_tokens']:,}"
+            )
             pbar.update(1)
             result_queue.task_done()
             
@@ -268,6 +456,26 @@ def result_writer(
     else:
         print("Result Writer: No solutions to write.")
     
+    # Print comprehensive final statistics
+    print("\n" + "="*60)
+    print("📊 PROCESSING STATISTICS SUMMARY")
+    print("="*60)
+    print(f"✅ Total Processed: {processed_count:,}")
+    print(f"✅ Successful: {success_count:,} ({success_rate:.1f}%)")
+    print(f"❌ Errors: {error_count:,} ({(error_count/processed_count)*100 if processed_count > 0 else 0:.1f}%)")
+    print(f"⏱️  Average Time: {avg_time:.2f}s per task")
+    print(f"⏱️  Total Time: {total_time:.1f}s")
+    print(f"🔤 Total Tokens: {total_tokens['total_tokens']:,}")
+    print(f"   - Prompt: {total_tokens['prompt_tokens']:,}")
+    print(f"   - Completion: {total_tokens['completion_tokens']:,}")
+    
+    if error_types:
+        print(f"\n❌ Error Breakdown:")
+        for error_type, count in error_types.items():
+            percentage = (count / error_count) * 100 if error_count > 0 else 0
+            print(f"   - {error_type}: {count} ({percentage:.1f}%)")
+    
+    print("="*60)
     print("Result Writer: Finished.")
 
 
@@ -330,6 +538,49 @@ def parse_args(config: AppConfig) -> argparse.Namespace:
     return args
 
 
+def check_existing_solutions(output_file: Path) -> Dict[str, set]:
+    """
+    Checks existing solutions in the output file and returns a dictionary of completed tasks.
+    Enhanced version from problem_solve.py for duplicate detection and prevention.
+
+    Args:
+        output_file: Path to the JSON file containing existing solutions.
+
+    Returns:
+        Dictionary mapping model names to sets of completed problem IDs.
+    """
+    completed_tasks = {}
+    
+    if not output_file.exists():
+        return completed_tasks
+    
+    try:
+        with open(output_file, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            if not content:
+                return completed_tasks
+            
+            solutions = json.loads(content)
+            
+        for solution in solutions:
+            problem_id = solution.get("id")
+            model = solution.get("model")
+            answer = solution.get("answer", "")
+            
+            # Only consider tasks with non-empty answers as completed
+            # This prevents re-processing failed tasks that should be retried
+            if problem_id is not None and model and answer.strip():
+                if model not in completed_tasks:
+                    completed_tasks[model] = set()
+                completed_tasks[model].add(problem_id)
+                
+    except (json.JSONDecodeError, Exception) as e:
+        print(f"⚠️  Warning: Could not read existing solutions from {output_file}: {e}")
+        return {}
+    
+    return completed_tasks
+
+
 def main() -> None:
     """
     Main function to set up and run the producer-consumer system.
@@ -355,9 +606,7 @@ def main() -> None:
 
     # Initialize globals in api_run.py module
     initialize_globals_from_config(
-        APP_CONFIG.openai_o_model_keywords,
-        APP_CONFIG.system_prompt_content,
-        APP_CONFIG.user_prompt_template
+        APP_CONFIG.openai_o_model_keywords
     )
 
     # Update dynamic global constants based on final config/args
@@ -389,12 +638,24 @@ def main() -> None:
     print(f"Max retries per task: {effective_max_retries}")
     print(f"Task queue size: {effective_max_task_queue_size}")
 
+    # Check for existing solutions to avoid duplicates
+    existing_solutions = check_existing_solutions(output_file)
+    if existing_solutions:
+        print(f"Found existing solutions for model(s): {', '.join(existing_solutions.keys())}")
+        for model, problem_ids in existing_solutions.items():
+            print(f"  Model {model}: {len(problem_ids)} completed problem(s).")
+
+        # Optionally: remove already completed problems from the workload
+        if args.skip_existing:
+            print("Skipping existing problems in this run.")
+            sampled_problems = [p for p in sampled_problems if p.get("id") not in existing_solutions.get(args.model, set())]
+
     total_tasks_to_produce = len(sampled_problems) * args.repeat_times
 
     # Start the producer thread
     producer_thread = threading.Thread(
         target=producer,
-        args=(sampled_problems, args.model, args.repeat_times),
+        args=(sampled_problems, args.model, args.repeat_times, output_file),
         daemon=True 
     )
     producer_thread.start()
@@ -418,7 +679,7 @@ def main() -> None:
     # Start the result writer thread
     writer_thread = threading.Thread(
         target=result_writer,
-        args=(output_file, total_tasks_to_produce, APP_CONFIG.result_writer_batch_size),
+        args=(output_file, total_tasks_to_produce),
         daemon=True,
         name="ResultWriter"
     )

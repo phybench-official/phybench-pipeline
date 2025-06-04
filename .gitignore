@@ -22,7 +22,7 @@ config.ini
 # Output and result files
 *.json
 test_results/
-solutions/
+model_solutions/
 
 # Logs
 *.log

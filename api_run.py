@@ -9,37 +9,21 @@ from tqdm import tqdm
 import time
 from typing import List, Dict, Any, Optional
 
-# Configuration for prompts and model specifics will be passed or initialized
-# Global variable for normalized o_models, to be initialized by a function
+# Global variable for normalized o_models, to be initialized
 _NORMALIZED_OPENAI_O_MODELS: Optional[set[str]] = None
-SYSTEM_PROMPT_CONTENT_GLOBAL: str = "" # To be set by initialize_prompts
-USER_PROMPT_TEMPLATE_GLOBAL: str = "" # To be set by initialize_prompts
 
 
-def initialize_globals_from_config(
-    openai_o_model_keywords: List[str],
-    system_prompt: str,
-    user_prompt: str
-) -> None:
+def initialize_globals_from_config(openai_o_model_keywords: List[str]) -> None:
     """Initializes global settings from configuration."""
-    global _NORMALIZED_OPENAI_O_MODELS, SYSTEM_PROMPT_CONTENT_GLOBAL, USER_PROMPT_TEMPLATE_GLOBAL
+    global _NORMALIZED_OPENAI_O_MODELS
     
     _NORMALIZED_OPENAI_O_MODELS = {
         kw.lower().replace(" ", "").replace("-", "") for kw in openai_o_model_keywords
     }
-    SYSTEM_PROMPT_CONTENT_GLOBAL = system_prompt
-    USER_PROMPT_TEMPLATE_GLOBAL = user_prompt
 
 
 def create_async_client(api_key: str, base_url: str) -> AsyncOpenAI:
-    """
-    Creates an asynchronous OpenAI client.
-    Args:
-        api_key: The API key.
-        base_url: The base URL for the API.
-    Returns:
-        An instance of AsyncOpenAI.
-    """
+    """Creates an asynchronous OpenAI client."""
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
@@ -63,9 +47,9 @@ def read_problems(filename: str) -> List[Dict[str, Any]]:
     except json.JSONDecodeError:
         print(f"Error: Could not decode JSON from '{filename}'. Ensure it's a valid JSON file.")
         return []
-    
+
     # # 只保留id在idList中的题目
-    # idList = set([512, 309, 463, 286, 454, 320, 581, 213, 25, 467, 288, 584, 390, 351])
+    # idList = set([512, 309])
     # data = [problem for problem in data if problem["id"] in idList]
     return data
 
@@ -107,38 +91,106 @@ def extract_boxed_answer(solution_text: str) -> str:
 # Global async lock to prevent concurrent file write conflicts
 file_lock = asyncio.Lock()
 
-async def write_solution(solution: Dict[str, Any], output_filename: str) -> None:
+async def write_solution(solution: Dict[str, Any], output_filename: str) -> bool:
     """
-    Asynchronously writes a single solution to JSON file, using file_lock to prevent concurrent write conflicts.
-    Does not overwrite solutions with same id/model, keeps all results for multiple test runs.
+    Asynchronously writes a single solution to JSON file with backup/recovery mechanism.
 
     Args:
         solution: The solution dictionary to write.
         output_filename: The path to the output JSON file.
+
+    Returns:
+        True if write was successful, False otherwise.
     """
-    try:
-        async with file_lock:
-            # Read existing solutions
-            if os.path.exists(output_filename):
-                async with aiofiles.open(output_filename, 'r', encoding='utf-8') as f:
-                    content = await f.read()
-                    try:
-                        solutions = json.loads(content) if content else []
-                    except json.JSONDecodeError:
-                        print(f"Warning: Could not parse existing content in {output_filename}. Initializing as empty list.")
-                        solutions = []
-            else:
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            async with file_lock:
+                # Read existing solutions
                 solutions = []
+                if os.path.exists(output_filename):
+                    try:
+                        async with aiofiles.open(output_filename, 'r', encoding='utf-8') as f:
+                            content = await f.read()
+                            if content.strip():
+                                solutions = json.loads(content)
+                    except (json.JSONDecodeError, Exception):
+                        # If file is corrupted, try to restore from backup
+                        backup_filename = output_filename + ".backup"
+                        if os.path.exists(backup_filename):
+                            try:
+                                async with aiofiles.open(backup_filename, 'r', encoding='utf-8') as f:
+                                    content = await f.read()
+                                    solutions = json.loads(content) if content.strip() else []
+                            except Exception:
+                                solutions = []
+                        else:
+                            solutions = []
 
-            # Append directly, do not overwrite
-            solutions.append(solution)
+                # Check if the same ID/model already exists in the file
+                # If so, replace it. Otherwise, append as a new entry.
+                updated = False
+                for i, existing_solution in enumerate(solutions):
+                    if (existing_solution["id"] == solution["id"]
+                        and existing_solution["model"] == solution["model"]):
+                        solutions[i] = solution
+                        updated = True
+                        break
+                
+                if not updated:
+                    solutions.append(solution)
 
-            # Write back to file
-            async with aiofiles.open(output_filename, 'w', encoding='utf-8') as f:
-                await f.write(json.dumps(solutions, indent=4, ensure_ascii=False))
+                # Create backup before writing
+                backup_filename = output_filename + ".backup"
+                if os.path.exists(output_filename):
+                    try:
+                        async with aiofiles.open(output_filename, 'r', encoding='utf-8') as src:
+                            backup_content = await src.read()
+                        async with aiofiles.open(backup_filename, 'w', encoding='utf-8') as dst:
+                            await dst.write(backup_content)
+                    except Exception:
+                        pass  # Backup failure doesn't affect main flow
 
-    except Exception as e:
-        print(f"Error writing solution: {e} for file {output_filename}")
+                # Write the updated list back to the file
+                json_content = json.dumps(solutions, indent=4, ensure_ascii=False)
+                async with aiofiles.open(output_filename, 'w', encoding='utf-8') as f:
+                    await f.write(json_content)
+                
+                # Verify write was successful
+                try:
+                    async with aiofiles.open(output_filename, 'r', encoding='utf-8') as f:
+                        verify_content = await f.read()
+                        json.loads(verify_content)  # Verify JSON format is correct
+                    
+                    print(f"✅ Saved: Problem {solution['id']}, Model {solution['model']}")
+                    return True
+                    
+                except Exception:
+                    if attempt < max_retries - 1:
+                        print(f"⚠️  Write verification failed, retrying {attempt + 1}/{max_retries}")
+                        await asyncio.sleep(0.5)
+                        continue
+                    else:
+                        raise
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠️  Write failed, retrying {attempt + 1}/{max_retries}: {e}")
+                await asyncio.sleep(1)
+            else:
+                print(f"❌ Error writing solution (final failure): {e}")
+                # Try to write to emergency backup file
+                emergency_filename = f"{output_filename}.emergency_{int(time.time())}"
+                try:
+                    async with aiofiles.open(emergency_filename, 'w', encoding='utf-8') as f:
+                        await f.write(json.dumps([solution], indent=4, ensure_ascii=False))
+                    print(f"🆘 Written to emergency backup: {emergency_filename}")
+                except Exception:
+                    print(f"💥 Emergency backup failed")
+                return False
+    
+    return False
 
 
 def _is_openai_o_model(model_name: str) -> bool:
@@ -158,26 +210,28 @@ async def generate_solution_data(
     problem: Dict[str, Any],
     model: str,
     repeat_idx: Optional[int],
-    timeout: Optional[float] = 1200.0
+    timeout: Optional[float] = 3600.0
 ) -> Dict[str, Any]:
     """
-    Generates a solution for a given problem using the specified model.
-    This function handles the API call and data extraction but does not write to files
-    or manage progress bars.
+    Generates a solution for a given problem using the specified model with streaming API.
+    Enhanced version with streaming-first approach, real-time token counting, and thinking support.
 
     Args:
         async_client_instance: An active AsyncOpenAI client instance.
         problem: The problem dictionary, containing "id" and "content" or "translatedContent".
         model: The name of the model to use.
         repeat_idx: The repetition index for this attempt (if any).
-        timeout: Optional timeout in seconds for the API call.
+        timeout: Optional timeout in seconds for the API call (default 3600 for streaming).
 
     Returns:
         A dictionary containing the solution details, including any errors encountered.
     """
-    if not USER_PROMPT_TEMPLATE_GLOBAL or ("{question_text}" not in USER_PROMPT_TEMPLATE_GLOBAL) or not SYSTEM_PROMPT_CONTENT_GLOBAL:
-        # This should not happen if initialize_globals_from_config is called.
-        print(f"Warning: Global prompts not initialized. Current user prompt:\n{USER_PROMPT_TEMPLATE_GLOBAL}\nCurrent system prompt:\n{SYSTEM_PROMPT_CONTENT_GLOBAL}")
+    # Use enhanced physics prompt instead of legacy prompts
+    enhanced_prompt = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
+Your final answer must be enclosed strictly within a single \\boxed{} command. 
+The final answer must be a single, fully simplified, and directly parseable LaTeX expression. 
+Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
+Use standard LaTeX conventions rigorously."""
 
     question_text: str = problem.get("translatedContent", problem.get("content", ""))
     if not question_text:
@@ -188,77 +242,90 @@ async def generate_solution_data(
             "answer": "",
             "time_taken": 0.0,
             "repeat_idx": repeat_idx,
-            "prompt_tokens": None,
-            "completion_tokens": None,
-            "total_tokens": None,
+            "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
-        
-    prompt: str = USER_PROMPT_TEMPLATE_GLOBAL.replace('{question_text}', question_text)
 
-    solution_text: Optional[str] = None
-    elapsed_time: float = 0.0
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[int] = None
-    total_tokens: Optional[int] = None
-    error_message: Optional[str] = None
+    full_prompt = f"{enhanced_prompt}\nQuestion: {question_text}\n\nPlease provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
 
     start_time = time.time()
+    
     try:
-        extra_params: Dict[str, Any] = {}
+        # Prepare model-specific parameters
+        model_name_clean = model.replace("-high", "")
+        extra_params = {}
+        
         if _is_openai_o_model(model):
-            extra_params["reasoning_effort"] = "high"        # Call model API
-        response: ChatCompletion = await async_client_instance.chat.completions.create(
-            model=model,
+            if model.endswith("-high"):
+                extra_params["reasoning_effort"] = "high"
+            
+        # Enable thinking for supported models
+        extra_body = {"enable_thinking": True}
+        
+        # Use streaming API call
+        stream = await async_client_instance.chat.completions.create(
+            model=model_name_clean,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT_CONTENT_GLOBAL},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": full_prompt}
             ],
-            stream=False,
             timeout=timeout,
+            stream=True,
+            stream_options={"include_usage": True},
+            extra_body=extra_body,
             **extra_params
         )
 
-        if response.choices and response.choices[0].message:
-            message_obj: ChatCompletionMessage = response.choices[0].message
-            solution_text = message_obj.content
-        else:
-            solution_text = None 
-
-        if solution_text is None:
-            error_message = "Error: Received no valid response or empty solution text from the API."
-            print(f"Problem {problem.get('id', 'N/A')} with model {model}: Empty solution_text received in API response.")
+        # Collect streaming response
+        solution_text_chunks = []
+        usage_info = None
         
-        # Calculate elapsed_time and tokens only on success
+        async for chunk in stream:
+            # Process content chunks
+            if chunk.choices and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if hasattr(delta, 'content') and delta.content:
+                    content = delta.content
+                    solution_text_chunks.append(content)
+            
+            # Process usage information - usually in the last chunk
+            if hasattr(chunk, 'usage') and chunk.usage is not None:
+                usage_info = {
+                    "prompt_tokens": getattr(chunk.usage, 'prompt_tokens', 0),
+                    "completion_tokens": getattr(chunk.usage, 'completion_tokens', 0),
+                    "total_tokens": getattr(chunk.usage, 'total_tokens', 0)
+                }
+        
+        solution_text = "".join(solution_text_chunks)
         elapsed_time = time.time() - start_time
-        usage: Optional[CompletionUsage] = getattr(response, "usage", None)
-        if usage:
-            prompt_tokens = usage.prompt_tokens
-            completion_tokens = usage.completion_tokens
-            total_tokens = usage.total_tokens
+
+        final_boxed = extract_boxed_answer(solution_text)
+
+        return {
+            "id": problem.get("id", "unknown_id"),
+            "model": model,
+            "solution": solution_text.strip(),
+            "answer": final_boxed,
+            "time_taken": elapsed_time,
+            "repeat_idx": repeat_idx,
+            "tokens": usage_info or {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
 
     except Exception as e:
-        error_message = f"Error generating solution: {type(e).__name__}: {e}"
         elapsed_time = time.time() - start_time
-
-    final_boxed_answer = extract_boxed_answer(solution_text) if solution_text else ""
-      # Determine final solution content
-    final_solution_content = (
-        error_message or 
-        (solution_text.strip() if solution_text else 
-         "Error: Unknown issue, solution text is None without explicit error message.")
-    )
-
-    return {
-        "id": problem.get("id", "unknown_id"),
-        "model": model,
-        "solution": final_solution_content,
-        "answer": final_boxed_answer,
-        "time_taken": elapsed_time,
-        "repeat_idx": repeat_idx,
-        "prompt_tokens": prompt_tokens,
-        "completion_tokens": completion_tokens,
-        "total_tokens": total_tokens,
-    }
+        error_message = f"Error generating solution: {type(e).__name__}: {e}"
+        
+        return {
+            "id": problem.get("id", "unknown_id"),
+            "model": model,
+            "solution": error_message,
+            "answer": "",
+            "time_taken": elapsed_time,
+            "repeat_idx": repeat_idx,
+            "tokens": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "error": str(e)
+        }
 
 
 async def process_problem(
