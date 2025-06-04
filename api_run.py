@@ -210,18 +210,19 @@ async def generate_solution_data(
     problem: Dict[str, Any],
     model: str,
     repeat_idx: Optional[int],
-    timeout: Optional[float] = 3600.0
+    timeout: Optional[float] = 1200.0
 ) -> Dict[str, Any]:
     """
-    Generates a solution for a given problem using the specified model with streaming API.
-    Enhanced version with streaming-first approach, real-time token counting, and thinking support.
+    Generates a solution for a given problem using the specified model with non-streaming API.
+    Enhanced version with physics-specific prompt, model-specific parameters, thinking support, 
+    robust error handling, token tracking, and timestamp functionality.
 
     Args:
         async_client_instance: An active AsyncOpenAI client instance.
         problem: The problem dictionary, containing "id" and "content" or "translatedContent".
         model: The name of the model to use.
         repeat_idx: The repetition index for this attempt (if any).
-        timeout: Optional timeout in seconds for the API call (default 3600 for streaming).
+        timeout: Optional timeout in seconds for the API call (default 1200 for non-streaming).
 
     Returns:
         A dictionary containing the solution details, including any errors encountered.
@@ -262,41 +263,34 @@ Use standard LaTeX conventions rigorously."""
         # Enable thinking for supported models
         extra_body = {"enable_thinking": True}
         
-        # Use streaming API call
-        stream = await async_client_instance.chat.completions.create(
+        # Use non-streaming API call
+        response = await async_client_instance.chat.completions.create(
             model=model_name_clean,
             messages=[
                 {"role": "user", "content": full_prompt}
             ],
             timeout=timeout,
-            stream=True,
-            stream_options={"include_usage": True},
             extra_body=extra_body,
             **extra_params
         )
 
-        # Collect streaming response
-        solution_text_chunks = []
-        usage_info = None
-        
-        async for chunk in stream:
-            # Process content chunks
-            if chunk.choices and len(chunk.choices) > 0:
-                delta = chunk.choices[0].delta
-                if hasattr(delta, 'content') and delta.content:
-                    content = delta.content
-                    solution_text_chunks.append(content)
-            
-            # Process usage information - usually in the last chunk
-            if hasattr(chunk, 'usage') and chunk.usage is not None:
-                usage_info = {
-                    "prompt_tokens": getattr(chunk.usage, 'prompt_tokens', 0),
-                    "completion_tokens": getattr(chunk.usage, 'completion_tokens', 0),
-                    "total_tokens": getattr(chunk.usage, 'total_tokens', 0)
-                }
-        
-        solution_text = "".join(solution_text_chunks)
         elapsed_time = time.time() - start_time
+
+        # Extract solution text from response
+        solution_text = ""
+        if response.choices and len(response.choices) > 0:
+            message = response.choices[0].message
+            if hasattr(message, 'content') and message.content:
+                solution_text = message.content
+
+        # Extract token usage information
+        usage_info = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        if hasattr(response, 'usage') and response.usage:
+            usage_info = {
+                "prompt_tokens": getattr(response.usage, 'prompt_tokens', 0),
+                "completion_tokens": getattr(response.usage, 'completion_tokens', 0),
+                "total_tokens": getattr(response.usage, 'total_tokens', 0)
+            }
 
         final_boxed = extract_boxed_answer(solution_text)
 
