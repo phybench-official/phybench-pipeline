@@ -4,12 +4,14 @@ from pathlib import Path
 
 CONFIG_FILE_NAME = "config.ini"
 
+
 class AppConfig:
     """Holds application configuration."""
+
     def __init__(self):
         self.base_url: Optional[str] = None
         self.api_key: Optional[str] = None
-        
+
         self.default_model: Optional[str] = None
         self.openai_o_model_keywords: List[str] = []
 
@@ -34,30 +36,44 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
     config = AppConfig()
 
     if not config_file_path.is_file():
-        print(f"Warning: Configuration file '{config_file_path}' not found. Using default values.")
+        print(
+            f"Warning: Configuration file '{config_file_path}' not found. Using default values."
+        )
         print("Please create a config.ini file based on the example format.")
     else:
-        parser.read(config_file_path, encoding='utf-8')
+        parser.read(config_file_path, encoding="utf-8")
 
     if "API" in parser:
         config.base_url = parser["API"].get("BASE_URL")
         config.api_key = parser["API"].get("API_KEY")
-    
+
     config.base_url = config.base_url or "https://api.gpt.ge/v1"
 
     if "SETTINGS" in parser:
         default_model_raw = parser["SETTINGS"].get("DEFAULT_MODEL")
-        config.default_model = default_model_raw.strip() if default_model_raw and default_model_raw.strip() else None
-        
+        config.default_model = (
+            default_model_raw.strip()
+            if default_model_raw and default_model_raw.strip()
+            else None
+        )
+
         o_model_kw_str = parser["SETTINGS"].get("OPENAI_O_MODEL_KEYWORDS", "")
         if o_model_kw_str:
-            config.openai_o_model_keywords = [kw.strip() for kw in o_model_kw_str.split(',') if kw.strip()]
+            config.openai_o_model_keywords = [
+                kw.strip() for kw in o_model_kw_str.split(",") if kw.strip()
+            ]
 
     config.default_model = config.default_model or "gpt-4o"
     if not config.openai_o_model_keywords:
         config.openai_o_model_keywords = [
-            "o3-mini", "o3 (high)", "o3-high", "o3-mini (high)", 
-            "o4-mini", "o4-mini (high)", "o1", "o1-preview-all"
+            "o3-mini",
+            "o3 (high)",
+            "o3-high",
+            "o3-mini (high)",
+            "o4-mini",
+            "o4-mini (high)",
+            "o1",
+            "o1-preview-all",
         ]
 
     if "EXECUTION" in parser:
@@ -67,7 +83,9 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
         config.chat_timeout = parser["EXECUTION"].getfloat("CHAT_TIMEOUT", 1200.0)
         config.repeat_times = parser["EXECUTION"].getint("REPEAT_TIMES", 1)
         config.max_retries = parser["EXECUTION"].getint("MAX_RETRIES", 5)
-        config.max_task_queue_size = parser["EXECUTION"].getint("MAX_TASK_QUEUE_SIZE", 100)
+        config.max_task_queue_size = parser["EXECUTION"].getint(
+            "MAX_TASK_QUEUE_SIZE", 100
+        )
     else:
         config.num_consumers = 10
         config.chat_timeout = 1200.0

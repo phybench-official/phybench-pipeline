@@ -14,7 +14,7 @@ _NORMALIZED_OPENAI_O_MODELS: Optional[set[str]] = None
 def initialize_globals_from_config(openai_o_model_keywords: List[str]) -> None:
     """Initializes global settings from configuration."""
     global _NORMALIZED_OPENAI_O_MODELS
-    
+
     _NORMALIZED_OPENAI_O_MODELS = {
         kw.lower().replace(" ", "").replace("-", "") for kw in openai_o_model_keywords
     }
@@ -37,7 +37,7 @@ def read_problems(filename: str) -> List[Dict[str, Any]]:
         A list of dictionaries, where each dictionary represents a problem.
     """
     try:
-        with open(filename, 'r', encoding='utf-8') as f:
+        with open(filename, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
@@ -70,11 +70,11 @@ def extract_boxed_answer(solution_text: str) -> str:
 
     while index < len(solution_text) and brace_level > 0:
         char = solution_text[index]
-        if char == '{':
+        if char == "{":
             brace_level += 1
-        elif char == '}':
+        elif char == "}":
             brace_level -= 1
-        
+
         if brace_level > 0:
             content_chars.append(char)
         index += 1
@@ -83,6 +83,7 @@ def extract_boxed_answer(solution_text: str) -> str:
 
 
 file_lock = asyncio.Lock()
+
 
 async def write_solution(solution: Dict[str, Any], output_filename: str) -> bool:
     """
@@ -102,35 +103,37 @@ async def write_solution(solution: Dict[str, Any], output_filename: str) -> bool
             try:
                 existing_solutions = []
                 if Path(output_filename).exists():
-                    with open(output_filename, 'r', encoding='utf-8') as f:
+                    with open(output_filename, "r", encoding="utf-8") as f:
                         existing_solutions = json.load(f)
-                
+
                 existing_solutions.append(solution)
-                
+
                 backup_filename = f"{output_filename}.backup"
                 if Path(output_filename).exists():
                     import shutil
+
                     shutil.copy2(output_filename, backup_filename)
-                
-                with open(output_filename, 'w', encoding='utf-8') as f:
+
+                with open(output_filename, "w", encoding="utf-8") as f:
                     json.dump(existing_solutions, f, indent=2, ensure_ascii=False)
-                
+
                 if Path(backup_filename).exists():
                     Path(backup_filename).unlink()
-                
+
                 return True
-                
+
             except Exception as e:
                 print(f"Attempt {attempt + 1} failed to write solution: {e}")
                 if attempt < max_retries - 1:
-                    await asyncio.sleep(0.1 * (2 ** attempt))
+                    await asyncio.sleep(0.1 * (2**attempt))
                 else:
                     backup_filename = f"{output_filename}.backup"
                     if Path(backup_filename).exists():
                         import shutil
+
                         shutil.copy2(backup_filename, output_filename)
                         print(f"Restored from backup: {backup_filename}")
-    
+
     return False
 
 
@@ -150,11 +153,11 @@ async def generate_solution_data(
     problem: Dict[str, Any],
     model: str,
     repeat_idx: Optional[int],
-    timeout: Optional[float] = 1200.0
+    timeout: Optional[float] = 1200.0,
 ) -> Dict[str, Any]:
     """
     Generates a solution for a given problem using the specified model with non-streaming API.
-    Enhanced version with physics-specific prompt, model-specific parameters, thinking support, 
+    Enhanced version with physics-specific prompt, model-specific parameters, thinking support,
     robust error handling, token tracking, and timestamp functionality.
 
     Args:
@@ -183,32 +186,34 @@ Use standard LaTeX conventions rigorously."""
             "timestamp": time.time(),
             "time_taken": 0.0,
             "repeat_index": repeat_idx,
-            "error_message": "Missing question content"
+            "error_message": "Missing question content",
         }
 
     full_prompt = f"{enhanced_prompt}\nQuestion: {question_text}\n\nPlease provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
 
     start_time = time.time()
-    
+
     try:
         params = {
             "model": model,
             "messages": [{"role": "user", "content": full_prompt}],
-            "timeout": timeout
+            "timeout": timeout,
         }
-        
+
         if _is_openai_o_model(model):
             params["reasoning_effort"] = "high"
-        
-        response: ChatCompletion = await async_client_instance.chat.completions.create(**params)
-        
+
+        response: ChatCompletion = await async_client_instance.chat.completions.create(
+            **params
+        )
+
         solution_content: str = response.choices[0].message.content or ""
         boxed_answer = extract_boxed_answer(solution_content)
-        
+
         time_taken = time.time() - start_time
-        
+
         usage: Optional[CompletionUsage] = response.usage
-        
+
         result = {
             "id": problem.get("id", "N/A"),
             "model": model,
@@ -216,22 +221,24 @@ Use standard LaTeX conventions rigorously."""
             "boxed_answer": boxed_answer,
             "timestamp": time.time(),
             "time_taken": time_taken,
-            "repeat_index": repeat_idx
+            "repeat_index": repeat_idx,
         }
-        
+
         if usage:
-            result.update({
-                "prompt_tokens": usage.prompt_tokens,
-                "completion_tokens": usage.completion_tokens,
-                "total_tokens": usage.total_tokens
-            })
-        
+            result.update(
+                {
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                    "total_tokens": usage.total_tokens,
+                }
+            )
+
         return result
 
     except Exception as e:
         time_taken = time.time() - start_time
         error_msg = f"Error generating solution: {str(e)}"
-        
+
         return {
             "id": problem.get("id", "N/A"),
             "model": model,
@@ -240,7 +247,7 @@ Use standard LaTeX conventions rigorously."""
             "timestamp": time.time(),
             "time_taken": time_taken,
             "repeat_index": repeat_idx,
-            "error_message": str(e)
+            "error_message": str(e),
         }
 
 
@@ -251,7 +258,7 @@ async def process_problem(
     output_filename: str,
     pbar: Optional[tqdm] = None,
     repeat_idx: Optional[int] = None,
-    api_timeout: Optional[float] = 1200.0
+    api_timeout: Optional[float] = 1200.0,
 ) -> Dict[str, Any]:
     """
     Processes a single problem, calls model to generate solution, and writes to file.
@@ -270,7 +277,9 @@ async def process_problem(
         The solution dictionary that was generated and written.
     """
     problem_id = problem.get("id", "N/A")
-    status_msg_key = f"problem {problem_id}" + (f" (attempt {repeat_idx + 1})" if repeat_idx is not None else "")
+    status_msg_key = f"problem {problem_id}" + (
+        f" (attempt {repeat_idx + 1})" if repeat_idx is not None else ""
+    )
     status_msg = f"Using {model} for {status_msg_key}..."
 
     if pbar:
@@ -283,25 +292,27 @@ async def process_problem(
     )
 
     elapsed_time = solution_data.get("time_taken", 0.0)
-    
+
     solution_content = solution_data.get("solution")
-    is_error = isinstance(solution_content, str) and solution_content.startswith("Error")
-    
+    is_error = isinstance(solution_content, str) and solution_content.startswith(
+        "Error"
+    )
+
     if is_error:
         status_suffix = f"❌ Error after {elapsed_time:.1f}s"
     else:
         status_suffix = f"✅ Completed in {elapsed_time:.1f}s"
-    
+
     final_status = f"{status_msg} {status_suffix}"
-    
+
     if pbar:
         pbar.set_description(final_status)
         pbar.update(1)
     else:
         print(final_status)
-    
+
     write_success = await write_solution(solution_data, output_filename)
     if not write_success:
         print(f"Warning: Failed to write solution for problem {problem_id}")
-    
+
     return solution_data
