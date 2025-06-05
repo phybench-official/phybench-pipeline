@@ -1,11 +1,14 @@
-from sympy import *
-from sympy.core.function import AppliedUndef
-from sympy.core.numbers import Pi, Exp1,I,Infinity,NegativeInfinity,ImaginaryUnit,ComplexInfinity
+from sympy import (  # type: ignore
+    Symbol, Integer, Float, Rational, Add, Mul, Pow, Function, simplify, expand, posify,
+    pi as Pi, E as Exp1, oo as Infinity, I, zoo as ComplexInfinity
+)
+import sympy
+NegativeInfinity = -sympy.oo
+ImaginaryUnit = sympy.I
 import numpy as np
 import timeout_decorator
-from extended_zss import ext_distance
-from latex_pre_process import *
-from sympy.simplify import *
+from .extended_zss import ext_distance
+from .latex_pre_process import master_convert  # type: ignore
 """
 Guide:
 You only need to use EED and install the following packages:
@@ -110,24 +113,24 @@ def score_calc(tree_dist,tree_size,parameters=[initial_score,scoring_slope]):
 
 
 
-@timeout_decorator.timeout(30, timeout_exception=TimeoutError)
+@timeout_decorator.timeout(30, timeout_exception=timeout_decorator.TimeoutError)  # type: ignore
 def simplify_with_timeout(expr):
     return simplify(expr)
 def time_simplify(expr):
     try:
         result=simplify_with_timeout(expr)
         return result
-    except TimeoutError:
+    except timeout_decorator.TimeoutError:  # type: ignore
         return expr
 
-@timeout_decorator.timeout(10, timeout_exception=TimeoutError)
+@timeout_decorator.timeout(10, timeout_exception=timeout_decorator.TimeoutError)  # type: ignore
 def equal_with_timeout(expr1,expr2):
     return expr1.equals(expr2)
 def time_equal(expr1,expr2):
     try:
         result=equal_with_timeout(expr1,expr2)
         return result
-    except TimeoutError:
+    except timeout_decorator.TimeoutError:  # type: ignore
         return False
 
 

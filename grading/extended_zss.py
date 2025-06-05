@@ -53,10 +53,8 @@ class AnnotatedTree(object):
         self.nodes = list()  # a post-order enumeration of the nodes in the tree
         self.ids = list()    # a matching list of ids
         self.lmds = list()   # left most descendents of each nodes
-        self.keyroots = None
-            # the keyroots in the original paper
+        self.keyroots = []   # the keyroots in the original paper  # type: ignore
            
-
         stack = list()
         pstack = list()
         stack.append((root, collections.deque()))
@@ -83,16 +81,16 @@ class AnnotatedTree(object):
                     if a not in lmds: lmds[a] = i
                     else: break
             else:
-                try: lmd = lmds[nid]
-                except:
-                    import pdb
-                    pdb.set_trace()
+                try: 
+                    lmd = lmds[nid]
+                except KeyError:
+                    lmd = i  # Default fallback if nid not found
             self.lmds.append(lmd)
             keyroots[lmd] = i
             i += 1
         self.keyroots = sorted(keyroots.values())
 
-    
+
 def ext_distance(A, B, get_children, single_insert_cost,insert_cost,single_remove_cost, remove_cost, update_cost):
     '''Computes the extended tree edit distance between trees A and B with extended-zss algorithm
     Args:
@@ -125,11 +123,11 @@ def ext_distance(A, B, get_children, single_insert_cost,insert_cost,single_remov
         n = size_b
 
         fd[Al[x]][Bl[y]]=0
-        for i in range(Al[x], x+1): 
+        for i in range(Al[x], x+1):
             node = An[i]
             fd[i+1][Bl[y]] = fd[Al[i]][Bl[y]] + remove_cost(node)
 
-        for j in range(Bl[y], y+1): 
+        for j in range(Bl[y], y+1):
             node = Bn[j]
             
             fd[Al[x]][j+1] = fd[Al[x]][Bl[j]] + insert_cost(node)
@@ -157,4 +155,3 @@ def ext_distance(A, B, get_children, single_insert_cost,insert_cost,single_remov
             treedist(x, y)
 
     return treedists[-1][-1]
-

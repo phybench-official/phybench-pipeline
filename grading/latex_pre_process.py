@@ -1,7 +1,8 @@
 #This file is used to pre-process input latex expressions
 #You only need a "master_convert()"
-from latex2sympy2_extended import *
+from latex2sympy2_extended import latex2sympy  # type: ignore
 from sympy import simplify
+import re
 
 
 
@@ -14,16 +15,16 @@ def brackets_balanced(s: str) -> bool:
         bool: True if the brackets are balanced, False otherwise
     """
     stack = []
-    bracket_pairs = {')': '(', ']': '[', '}': '{'}  
+    bracket_pairs = {')': '(', ']': '[', '}': '{'}
 
     for char in s:
-        if char in bracket_pairs.values():  
+        if char in bracket_pairs.values():
             stack.append(char)
-        elif char in bracket_pairs:         
+        elif char in bracket_pairs:
             if not stack or stack[-1] != bracket_pairs[char]:
-                return False  
-            stack.pop()        
-    return len(stack) == 0  
+                return False
+            stack.pop()
+    return len(stack) == 0
 
 
 
@@ -31,14 +32,14 @@ def remove_non_ascii(text):
     return text.encode("ascii", errors="ignore").decode()
 
 import re
-def extract_bracket_content(s:str,bracket_position:int) -> str:
+def extract_bracket_content(s:str,bracket_position:int) -> tuple[str, int] | tuple[None, int]:
     start_idx=bracket_position
 
     stack = []
     content = []
     escaped = False
     brace_start=start_idx+1
-    brace_depth = 0  
+    brace_depth = 0
     for i in range(brace_start, len(s)):
         char = s[i]
         if escaped:
@@ -182,7 +183,7 @@ def get_first_brace_command(s: str) -> str | None:
     if brace_pos == -1:
         return None
     return extract_command(s, brace_pos)
-def remove_overall_brace(s:str) -> str:
+def remove_overall_brace(s:str) -> tuple[str, int]:
     """
     Remove the overall {xxx} brace
     """
@@ -192,10 +193,10 @@ def remove_overall_brace(s:str) -> str:
     command=get_first_brace_command(s)
     if not command:
 
-        content,final=extract_bracket_content(s,pos)
+        content, final = extract_bracket_content(s, pos)
         #print(s[final])
-        if final==len(s) or not '}' in s[final+1:]:
-            return content,1
+        if content is not None and (final == len(s) - 1 or '}' not in s[final+1:]):
+            return content, 1
     return s,0
 
 
@@ -272,7 +273,7 @@ def bar_inside_vec(s):
     return s
 def vec_lower_idx(input_str):
     """
-    in the annoying latex2sympy, error may occur when\ vec{a_{b}},we need\\vec{a_b}
+    in the annoying latex2sympy, error may occur when \\vec{a_{b}}, we need \\vec{a_b}
     Args：
         input_str (str): Original string
     
@@ -298,7 +299,7 @@ def convert_vec_syntax(text):
         str: The processed string with standardized vector syntax.
 
     Examples:
-        >>> convert_vec_syntax(r"\vec x + \vec\alpha + \vec\Gamma")
+        >>> convert_vec_syntax(r"\\vec x + \\vec\\alpha + \\vec\\Gamma")
         '\\vec{x} + \\vec{\\alpha} + \\vec{\\Gamma}'
     """
     
@@ -530,5 +531,5 @@ def master_convert(s):
     #print(preprocessed_stage1)
     preprocessed_stage2=second_pre_process(preprocessed_stage1)
 
-    Sym=latex2sympy(preprocessed_stage2,normalization_config=MyNormalization(),conversion_config=MyConfig())
+    Sym=latex2sympy(preprocessed_stage2,normalization_config=MyNormalization(),conversion_config=MyConfig())  # type: ignore
     return Sym

@@ -3,9 +3,8 @@
 import json
 import matplotlib.pyplot as plt
 import time
-from EED import EED
+from .EED import EED
 import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
 from tabulate import tabulate
 progress=0
 def write_log(s,file='./logs.txt'):
