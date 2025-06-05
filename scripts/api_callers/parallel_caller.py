@@ -394,6 +394,36 @@ def check_existing_solutions(output_file: Path) -> Dict[str, set]:
     return completed_tasks
 
 
+async def validate_model(api_key: str, base_url: str, model: str, timeout: float = 10.0) -> bool:
+    """
+    Validates that the specified model is available and working by making a simple test API call.
+    
+    Args:
+        api_key: The API key for authentication
+        base_url: The base URL for the API
+        model: The model name to validate
+        timeout: Timeout for the validation call in seconds
+    
+    Returns:
+        True if the model is valid and accessible, False otherwise
+    """
+    try:
+        client = create_async_client(api_key, base_url)
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": "Hi"}],
+                max_tokens=1,
+                timeout=timeout
+            )
+            return True
+        finally:
+            await client.close()
+    except Exception as e:
+        print(f"Model validation failed for '{model}': {e}")
+        return False
+
+
 def main() -> None:
     global APP_CONFIG, task_queue, result_queue
     
@@ -407,6 +437,24 @@ def main() -> None:
     if not args.target_dir:
         print("Error: No target directory specified. Use --target-dir or set DEFAULT_TARGET_DIR in config.")
         return
+    
+    if not args.model or args.model.strip() == "":
+        print("Error: No model specified. Use --model or set DEFAULT_MODEL in config.")
+        return
+    
+    if not APP_CONFIG.api_key:
+        print("Error: No API key specified. Please set API_KEY in config.")
+        return
+    
+    if not APP_CONFIG.base_url:
+        print("Error: No base URL specified. Please set BASE_URL in config.")
+        return
+    
+    print(f"🔍 Validating model '{args.model}'...")
+    if not asyncio.run(validate_model(APP_CONFIG.api_key, APP_CONFIG.base_url, args.model)):
+        print(f"Error: Model '{args.model}' is not available or not working. Please check your model name and API configuration.")
+        return
+    print(f"✅ Model '{args.model}' validated successfully.")
     
     initialize_globals_from_config(APP_CONFIG.openai_o_model_keywords)
     

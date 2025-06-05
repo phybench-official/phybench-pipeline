@@ -46,7 +46,8 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
     config.base_url = config.base_url or "https://api.gpt.ge/v1"
 
     if "SETTINGS" in parser:
-        config.default_model = parser["SETTINGS"].get("DEFAULT_MODEL")
+        default_model_raw = parser["SETTINGS"].get("DEFAULT_MODEL")
+        config.default_model = default_model_raw.strip() if default_model_raw and default_model_raw.strip() else None
         
         o_model_kw_str = parser["SETTINGS"].get("OPENAI_O_MODEL_KEYWORDS", "")
         if o_model_kw_str:
