@@ -22,6 +22,7 @@ NegativeInfinity = -sympy.oo
 ImaginaryUnit = sympy.I
 import numpy as np
 import timeout_decorator
+from timeout_decorator import timeout, TimeoutError
 from .extended_zss import ext_distance
 from .latex_pre_process import master_convert  # type: ignore
 
@@ -37,25 +38,26 @@ You only need to use EED and install the following packages:
 """
 There are four main categories:
 
-Constants: such as integers, decimals, or mathematical constants like π and e.
+Constants: integers, decimals, or mathematical constants like π and e.
 Variables: letters like x, y, z, or specified terms in problems (e.g., ħ, c, G).
 Functions: sine, cosine, exponential, logarithm, etc.
 Operators: basic binary operations including addition, multiplication, and exponentiation.
 """
+
 # The costs can be modified if you think their values are different
 insert_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
 delete_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
 update_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
 
 change_type_cost = (
-    1  # the cost of an update between different types,can be set to higher
+    1  # the cost of an update between different types, can be set to higher
 )
 
 bar_size = 5  # the minimum size of triggering cluster discount
-discount_slope = 0.6  # discount
+discount_slope = 0.6
 
-simplify_time_limit = 15  # set the time limit of simplify
-equals_time_limit = 10  # set the time limit of equals
+simplify_time_limit = 15
+equals_time_limit = 10
 
 initial_score = 60
 scoring_slope = 100
@@ -137,7 +139,7 @@ def score_calc(tree_dist, tree_size, parameters=[initial_score, scoring_slope]):
     return max(0, parameters[0] - parameters[1] * tree_dist / tree_size)
 
 
-@timeout_decorator.timeout(30, timeout_exception=timeout_decorator.TimeoutError)  # type: ignore
+@timeout(30, timeout_exception=TimeoutError)  # type: ignore
 def simplify_with_timeout(expr):
     return simplify(expr)
 
@@ -146,11 +148,11 @@ def time_simplify(expr):
     try:
         result = simplify_with_timeout(expr)
         return result
-    except timeout_decorator.TimeoutError:  # type: ignore
+    except TimeoutError:  # type: ignore
         return expr
 
 
-@timeout_decorator.timeout(10, timeout_exception=timeout_decorator.TimeoutError)  # type: ignore
+@timeout(10, timeout_exception=TimeoutError)  # type: ignore
 def equal_with_timeout(expr1, expr2):
     return expr1.equals(expr2)
 
@@ -159,7 +161,7 @@ def time_equal(expr1, expr2):
     try:
         result = equal_with_timeout(expr1, expr2)
         return result
-    except timeout_decorator.TimeoutError:  # type: ignore
+    except TimeoutError:  # type: ignore
         return False
 
 
@@ -239,9 +241,6 @@ def print_tree(node, indent=0):
     print("  " * indent + f"└─ {node.label}")
     for child in node.children:
         print_tree(child, indent + 1)
-
-
-import timeout_decorator
 
 
 class LaTeXError(Exception):
