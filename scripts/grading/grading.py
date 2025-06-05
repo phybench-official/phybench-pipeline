@@ -2,10 +2,14 @@ from __future__ import annotations
 import json
 import matplotlib.pyplot as plt
 import time
+import argparse
+import sys
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from .EED import EED
 import multiprocessing
 from tabulate import tabulate
+from .config import load_grading_config, GradingConfig
 
 progress = 0
 
@@ -185,15 +189,92 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
     return s_opt
 
 
-if __name__ == "__main__":
-    """
-    final_answer_f="./solutions/qwen_solution.json"
-    approved_problems_f="god_answer.json"
-    output_path="./output_data.json"
-    """
-    main(
-        "./solutions/claude-sonnet-4-0514.json",
-        "./god_answer.json",
-        f"./data_0531.json",
-        [60, 100],
+def parse_args(config: GradingConfig) -> argparse.Namespace:
+    """Parse command line arguments for grading."""
+    parser = argparse.ArgumentParser(
+        description="Grade model answers against ground truth using EED scoring"
     )
+    parser.add_argument(
+        "--gt-file",
+        default=config.default_gt_file,
+        help="Path to ground truth JSON file"
+    )
+    parser.add_argument(
+        "--gen-file", 
+        default=config.default_gen_file,
+        help="Path to generated answers JSON file"
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=config.default_output_dir, 
+        help="Output directory path for results"
+    )
+    parser.add_argument(
+        "--scoring-params",
+        default=",".join(map(str, config.default_scoring_params)),
+        help="Scoring parameters as comma-separated values (e.g., '60,100')"
+    )
+    parser.add_argument(
+        "--num-processes",
+        type=int,
+        default=config.num_processes,
+        help="Number of processes to use (0 = auto-detect)"
+    )
+    parser.add_argument(
+        "--log-file",
+        default=config.log_file,
+        help="Log file path"
+    )
+    
+    return parser.parse_args()
+
+
+def main_cli() -> None:
+    """Command line interface entry point."""
+    config = load_grading_config()
+    args = parse_args(config)
+    
+    if not args.gt_file:
+        print("Error: No ground truth file specified. Use --gt-file or set DEFAULT_GT_FILE in config.")
+        return
+        
+    if not args.gen_file:
+        print("Error: No generated file specified. Use --gen-file or set DEFAULT_GEN_FILE in config.")
+        return
+        
+    if not args.output_dir:
+        print("Error: No output directory specified. Use --output-dir or set DEFAULT_OUTPUT_DIR in config.")
+        return
+    
+    # Parse scoring parameters
+    try:
+        scoring_params = [int(x.strip()) for x in args.scoring_params.split(",")]
+    except ValueError:
+        print(f"Error: Invalid scoring parameters '{args.scoring_params}'. Expected format: '60,100'")
+        return
+    
+    print(f"🎯 Starting grading process:")
+    print(f"  - Ground truth file: {args.gt_file}")
+    print(f"  - Generated file: {args.gen_file}")
+    print(f"  - Output directory: {args.output_dir}")
+    print(f"  - Scoring parameters: {scoring_params}")
+    print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
+    print(f"  - Log file: {args.log_file}")
+    
+    result_table = main(args.gt_file, args.gen_file, args.output_dir, scoring_params)
+    print(result_table)
+
+
+if __name__ == "__main__":
+    # Use CLI if command line arguments provided, otherwise use hardcoded values for backward compatibility
+    if len(sys.argv) > 1:
+        main_cli()
+    else:
+        # Legacy hardcoded execution for backward compatibility
+        print("Running with legacy hardcoded parameters...")
+        main(
+            "./solutions/claude-sonnet-4-0514.json",
+            "./god_answer.json",
+            f"./data_0531.json",
+            [60, 100],
+        )
