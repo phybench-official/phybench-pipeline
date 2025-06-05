@@ -1,5 +1,7 @@
 # This file is used to pre-process input latex expressions
 # You only need a "master_convert()"
+from __future__ import annotations
+from typing import Tuple, Optional, List, Any
 from latex2sympy2_extended import latex2sympy  # type: ignore
 from sympy import simplify
 import re
@@ -26,7 +28,7 @@ def brackets_balanced(s: str) -> bool:
     return len(stack) == 0
 
 
-def remove_non_ascii(text):
+def remove_non_ascii(text: str) -> str:
     return text.encode("ascii", errors="ignore").decode()
 
 
@@ -35,7 +37,7 @@ import re
 
 def extract_bracket_content(
     s: str, bracket_position: int
-) -> tuple[str, int] | tuple[None, int]:
+) -> Tuple[Optional[str], int]:
     start_idx = bracket_position
 
     stack = []
@@ -79,7 +81,7 @@ def find_first_unescaped_brace(s: str) -> int:
     return -1
 
 
-def extract_command(s: str, brace_pos: int) -> str | None:
+def extract_command(s: str, brace_pos: int) -> Optional[str]:
     """extract the command name from a bracket"""
     i = brace_pos - 1
     parameter_mode = False
@@ -108,7 +110,7 @@ def extract_command(s: str, brace_pos: int) -> str | None:
     return s[i + 1 : command_end + 1]
 
 
-def remove_command(s, command, keep_inside=False):
+def remove_command(s: str, command: str, keep_inside: bool = False) -> str:
     """
     Removes all occurrences of a specified LaTeX-style command from a string.
 
@@ -171,7 +173,7 @@ def remove_command(s, command, keep_inside=False):
 import re
 
 
-def convert_latex_fractions(latex_str):
+def convert_latex_fractions(latex_str: str) -> str:
     """
     Convert non-standard fraction like \frac\alpha2 to its standard-convertable \frac{\alpha}{2}
     We suppoort single letter,number or standard form
@@ -195,7 +197,7 @@ def convert_latex_fractions(latex_str):
     return re.sub(pattern, replacer, latex_str)
 
 
-def get_first_brace_command(s: str) -> str | None:
+def get_first_brace_command(s: str) -> Optional[str]:
     """Find the first brace"""
     brace_pos = find_first_unescaped_brace(s)
     if brace_pos == -1:
@@ -203,7 +205,7 @@ def get_first_brace_command(s: str) -> str | None:
     return extract_command(s, brace_pos)
 
 
-def remove_overall_brace(s: str) -> tuple[str, int]:
+def remove_overall_brace(s: str) -> Tuple[str, int]:
     """
     Remove the overall {xxx} brace
     """
@@ -220,9 +222,9 @@ def remove_overall_brace(s: str) -> tuple[str, int]:
     return s, 0
 
 
-def exp_frac(s):
+def exp_frac(s: str) -> str:
 
-    def exp_frac_single(s):
+    def exp_frac_single(s: str) -> str:
         position = s.find("^\\frac") + 1
         if position == 0:
             return s
@@ -251,7 +253,7 @@ def exp_frac(s):
     return s
 
 
-def find_all(s, sub_str, allow_overlap=True):
+def find_all(s: str, sub_str: str, allow_overlap: bool = True) -> List[int]:
     indexes = []
     start = 0
     step = 1 if allow_overlap else len(sub_str)
@@ -266,7 +268,7 @@ def find_all(s, sub_str, allow_overlap=True):
     return indexes
 
 
-def bar_inside_vec(s):
+def bar_inside_vec(s: str) -> str:
     indices = find_all(s, "\\vec{")
     if not indices:
         return s
@@ -294,7 +296,7 @@ def bar_inside_vec(s):
     return s
 
 
-def vec_lower_idx(input_str):
+def vec_lower_idx(input_str: str) -> str:
     """
     in the annoying latex2sympy, error may occur when \\vec{a_{b}}, we need \\vec{a_b}
     Args：
@@ -308,13 +310,13 @@ def vec_lower_idx(input_str):
     return re.sub(pattern, replacement, input_str)
 
 
-def convert_vec_syntax(text):
+def convert_vec_syntax(text: str) -> str:
     """
     Converts LaTeX vector syntax to a standardized form.
 
     This function processes a given text string and ensures that LaTeX vector
     notations are consistently formatted. Specifically, it transforms instances
-    of `\vec xxx` into `\vec{xxx}`. The function handles cases where the vector
+    of `\\vec xxx` into `\\vec{xxx}`. The function handles cases where the vector
     notation is applied to single characters, Greek letters, or LaTeX commands.
 
     Args:
@@ -333,7 +335,7 @@ def convert_vec_syntax(text):
     return re.sub(pattern, replacement, text)
 
 
-def remove_outer_braces(tex_str):
+def remove_outer_braces(tex_str: str) -> str:
     """
     convert {base}_{subscript} to base_{subscript}
     Example：
@@ -389,7 +391,7 @@ def extract_last_equal_content(s: str, strip_whitespace: bool = True) -> str:
     return content
 
 
-def first_pre_process(s, extrac_box=True):
+def first_pre_process(s: str, extrac_box: bool = True) -> str:
     """
     Perform the first stage of LaTeX string preprocessing.
 
@@ -435,7 +437,7 @@ def first_pre_process(s, extrac_box=True):
     return last_equal_content
 
 
-def second_pre_process(s):
+def second_pre_process(s: str) -> str:
     """
     Perform the second stage of LaTeX string preprocessing.
 
@@ -556,7 +558,7 @@ class MyConfig:
     lowercase_symbols: bool = False
     """
     Args:
-        interpret_as_mixed_fractions (bool): Whether to interpert 2 \frac{1}{2} as 2/2 or 2 + 1/2
+        interpret_as_mixed_fractions (bool): Whether to interpert 2 \\frac{1}{2} as 2/2 or 2 + 1/2
         interpret_simple_eq_as_assignment (bool): Whether to interpret simple equations as assignments k=1 -> 1
         interpret_contains_as_eq (bool): Whether to interpret contains as equality x \\in {1,2,3} -> x = {1,2,3}
         lowercase_symbols (bool): Whether to lowercase all symbols
@@ -583,7 +585,7 @@ class MyNormalization:
     equations: bool = False
 
 
-def master_convert(s):
+def master_convert(s: str) -> Any:
     """
     The only function needed to convert a LaTeX string into a SymPy expression.
 

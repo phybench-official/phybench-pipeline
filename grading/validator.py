@@ -1,4 +1,6 @@
+from __future__ import annotations
 import json
+from typing import List, Dict, Any
 from latex_pre_process import *
 from EED import *
 import pandas as pd
@@ -9,7 +11,7 @@ with open(file_path, "r", encoding="utf-8") as file:
     data = json.load(file)
 
 
-def write_file(s):
+def write_file(s: str) -> None:
     with open("validator_logs.txt", "a", encoding="utf-8") as f:
         f.write(s)
 
@@ -17,14 +19,14 @@ def write_file(s):
 with open("validator_logs.txt", "w") as f:
     f.write("")
 
-formulas = []
+formulas: List[str] = []
 for i in data:
     formulas.append(i["answer"])
 # print(formulas)
 cnt = 0
 
 formulas = formulas[0:1000]
-opt = []
+opt: List[Dict[str, str]] = []
 for formula_a in formulas:
     formula = formula_a
     cnt += 1

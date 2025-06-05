@@ -1,6 +1,8 @@
+from __future__ import annotations
 import json
 import matplotlib.pyplot as plt
 import time
+from typing import Dict, List, Any, Optional
 from .EED import EED
 import multiprocessing
 from tabulate import tabulate
@@ -8,18 +10,18 @@ from tabulate import tabulate
 progress = 0
 
 
-def write_log(s, file="./logs.txt"):
+def write_log(s: str, file: str = "./logs.txt") -> None:
     with open(file, "a") as f:
         f.write(s + "\n")
 
 
-processing_lis = []
-processed_list = []
+processing_lis: List[Any] = []
+processed_list: List[Any] = []
 with open("logging.txt", "w", encoding="utf-8") as f:
     f.write("")
 
 
-def process_single_problem(data):
+def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
@@ -40,7 +42,7 @@ def process_single_problem(data):
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
 
-def main(gt_file_dir, gen_file_dir, output_dir, parameters):
+def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]]) -> str:
     """
     final_answer_f="./solutions/dsr1.json"
     approved_problems_f="god_answer.json"

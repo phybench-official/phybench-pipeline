@@ -1,4 +1,6 @@
-from sympy import (  # type: ignore
+from __future__ import annotations
+from typing import Dict, List, Tuple, Any, Optional, Union
+from sympy import (
     Symbol,
     Integer,
     Float,
@@ -24,7 +26,7 @@ import numpy as np
 import timeout_decorator
 from timeout_decorator import timeout, TimeoutError
 from .extended_zss import ext_distance
-from .latex_pre_process import master_convert  # type: ignore
+from .latex_pre_process import master_convert
 
 """
 Guide:
@@ -45,13 +47,11 @@ Operators: basic binary operations including addition, multiplication, and expon
 """
 
 # The costs can be modified if you think their values are different
-insert_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-delete_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-update_cost = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+insert_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+delete_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+update_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
 
-change_type_cost = (
-    1  # the cost of an update between different types, can be set to higher
-)
+change_type_cost: int = 1  # the cost of an update between different types, can be set to higher
 
 bar_size = 5  # the minimum size of triggering cluster discount
 discount_slope = 0.6
@@ -63,7 +63,7 @@ initial_score = 60
 scoring_slope = 100
 
 
-def update_func(x, y):
+def update_func(x: TreeNode, y: TreeNode) -> float:
 
     if x.label == y.label:
         return 0
@@ -73,26 +73,26 @@ def update_func(x, y):
     return change_type_cost
 
 
-def remove_func(x):
+def remove_func(x: TreeNode) -> float:
     return delete_cost[x.label.split("_")[0]]
 
 
-def remove_tree_func(x):
+def remove_tree_func(x: TreeNode) -> float:
     if not x.children:
         return remove_func(x)
     s = calc_tree_size(x)
     return min(s, discount_slope * (s - bar_size) + bar_size)
 
 
-def insert_func(x):
+def insert_func(x: TreeNode) -> float:
     return insert_cost[x.label.split("_")[0]]
 
 
-def insert_tree_func(x):
+def insert_tree_func(x: TreeNode) -> float:
     return remove_tree_func(x)
 
 
-def calc_tree_size(node):
+def calc_tree_size(node: TreeNode) -> int:
     """
     Calculate the size of a subtree based on its total insertion cost.
     The function computes the size of a subtree by summing up the insertion
@@ -132,40 +132,40 @@ Scoring function from relative distance
 """
 
 
-def score_calc(tree_dist, tree_size, parameters=[initial_score, scoring_slope]):
+def score_calc(tree_dist: float, tree_size: int, parameters: List[int] = [initial_score, scoring_slope]) -> float:
 
     if tree_dist == 0.0:
         return 100
     return max(0, parameters[0] - parameters[1] * tree_dist / tree_size)
 
 
-@timeout(30, timeout_exception=TimeoutError)  # type: ignore
-def simplify_with_timeout(expr):
+@timeout(30, timeout_exception=TimeoutError)
+def simplify_with_timeout(expr: Any) -> Any:
     return simplify(expr)
 
 
-def time_simplify(expr):
+def time_simplify(expr: Any) -> Any:
     try:
         result = simplify_with_timeout(expr)
         return result
-    except TimeoutError:  # type: ignore
+    except TimeoutError:
         return expr
 
 
-@timeout(10, timeout_exception=TimeoutError)  # type: ignore
-def equal_with_timeout(expr1, expr2):
+@timeout(10, timeout_exception=TimeoutError)
+def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
     return expr1.equals(expr2)
 
 
-def time_equal(expr1, expr2):
+def time_equal(expr1: Any, expr2: Any) -> bool:
     try:
         result = equal_with_timeout(expr1, expr2)
         return result
-    except TimeoutError:  # type: ignore
+    except TimeoutError:
         return False
 
 
-def sympy_to_tree(expr):
+def sympy_to_tree(expr: Any) -> TreeNode:
     """
     Convert a SymPy expression into a tree structure.
     This function takes a SymPy expression and recursively converts it into a tree
@@ -190,9 +190,6 @@ def sympy_to_tree(expr):
         >>> tree = sympy_to_tree(expr)
         >>> print(tree)
     """
-    # print(expr)
-
-    """Convert the sympy expression to a tree"""
     # Symbols and constants
     if isinstance(
         expr, (Integer, Pi, Exp1, Float, Rational, Infinity, NegativeInfinity)
@@ -209,8 +206,8 @@ def sympy_to_tree(expr):
         children = [sympy_to_tree(arg) for arg in expr.args]
         return TreeNode(label="operator_" + op_name, children=children)
 
+    # Functions
     elif isinstance(expr, (Function)):
-        # Functions
 
         func_name = expr.func.__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
@@ -223,20 +220,20 @@ def sympy_to_tree(expr):
 
 
 class TreeNode:
-    def __init__(self, label, children=None, node_type="other"):
+    def __init__(self, label: str, children: Optional[List[TreeNode]] = None, node_type: str = "other") -> None:
         self.label = label
         self.children = children if children is not None else []
         self.node_type = node_type
         self.subtree_size = 0
 
-    def get_children(self):
+    def get_children(self) -> List[TreeNode]:
         return self.children
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.label
 
 
-def print_tree(node, indent=0):
+def print_tree(node: TreeNode, indent: int = 0) -> None:
     """Print a tree structure"""
     print("  " * indent + f"└─ {node.label}")
     for child in node.children:
@@ -244,31 +241,31 @@ def print_tree(node, indent=0):
 
 
 class LaTeXError(Exception):
-    def __init__(self, message="LaTeXError"):
+    def __init__(self, message: str = "LaTeXError") -> None:
         super().__init__(message)
 
 
 class SymPyError(Exception):
-    def __init__(self, message="SymPyError"):
+    def __init__(self, message: str = "SymPyError") -> None:
         super().__init__(message)
 
 
 class TreeError(Exception):
-    def __init__(self, message="TreeError"):
+    def __init__(self, message: str = "TreeError") -> None:
         super().__init__(message)
 
 
 class DistError(Exception):
-    def __init__(self, message="DistanceError"):
+    def __init__(self, message: str = "DistanceError") -> None:
         super().__init__(message)
 
 
 def EED(
-    answer_latex,
-    test_latex,
-    debug_mode=False,
-    scoring_parameters=[initial_score, scoring_slope],
-):
+    answer_latex: str,
+    test_latex: str,
+    debug_mode: bool = False,
+    scoring_parameters: List[int] = [initial_score, scoring_slope],
+) -> Tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
     This function evaluates the equivalence of two mathematical expressions represented
@@ -321,7 +318,7 @@ def EED(
         answer_exp = master_convert(answer_latex)
         test_exp = master_convert(test_latex)
     except:
-        print(f"Failed to convert input latex to sympy expression,please check it")
+        print(f"Failed to convert input latex to sympy expression, please check it")
         if debug_mode:
             raise LaTeXError(
                 f"Fail to convert latex.\n GT:{answer_latex}\n GEN:{test_latex}"
@@ -362,7 +359,7 @@ def EED(
 
     except:
 
-        print("Failed to build expression tree,returning zero")
+        print("Failed to build expression tree, returning zero")
         if debug_mode:
             raise SymPyError(
                 f"Failed to build the sympy expression tree.\n GT:{answer_exp}\n GEN:{test_exp}"
@@ -395,7 +392,7 @@ def EED(
         print("Failed to calculate distance")
         if debug_mode:
             raise DistError(
-                f"Failed to calculate the distance between trees.\n GT:{answer_latex}\n GEN:{test_latex}"
+                f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"
             )
         return 0, -1, calc_tree_size(tree_answer), -1
     tree_size = calc_tree_size(tree_answer)
