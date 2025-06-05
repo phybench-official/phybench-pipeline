@@ -348,8 +348,8 @@ def result_writer(
 
 def parse_args(config: AppConfig) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Parallel API caller for physics problems")
-    parser.add_argument("--bench-file", default=config.default_bench_file, help="Path to the benchmark JSON file")
-    parser.add_argument("--target-dir", default=config.default_target_dir, help="Target directory for output files")
+    parser.add_argument("--bench-file", default=config.default_bench_file, help="Path to the input benchmark JSON file that contains problems")
+    parser.add_argument("--target-dir", default=config.default_target_dir, help="Target directory to store output files")
     parser.add_argument("--model", default=config.default_model, help="Model name to use")
     parser.add_argument("--repeat-times", type=int, default=config.repeat_times, help="Number of times to repeat each problem")
     parser.add_argument("--num-consumers", type=int, default=config.num_consumers, help="Number of consumer threads")
