@@ -30,19 +30,19 @@ def load_evaluation_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> E
     
     parser.read(config_file_path, encoding="utf-8")
 
-    if "EVALUATION" in parser:
-        config.default_gt_file = parser["EVALUATION"].get("DEFAULT_GT_FILE")
-        config.default_gen_file = parser["EVALUATION"].get("DEFAULT_GEN_FILE") 
-        config.default_output_dir = parser["EVALUATION"].get("DEFAULT_OUTPUT_DIR")
+    if "evaluation" in parser:
+        config.default_gt_file = parser["evaluation"].get("default_gt_file")
+        config.default_gen_file = parser["evaluation"].get("default_gen_file") 
+        config.default_output_dir = parser["evaluation"].get("default_output_dir")
         
-        scoring_params_str = parser["EVALUATION"].get("DEFAULT_SCORING_PARAMS", "60,100")
+        scoring_params_str = parser["evaluation"].get("default_scoring_params", "60,100")
         try:
             config.default_scoring_params = [int(x.strip()) for x in scoring_params_str.split(",")]
         except ValueError:
             print(f"Warning: Invalid scoring params '{scoring_params_str}', using default [60, 100]")
             config.default_scoring_params = [60, 100]
             
-        config.num_processes = parser["EVALUATION"].getint("NUM_PROCESSES", 0)
-        config.log_file = parser["EVALUATION"].get("LOG_FILE", "evaluation_logs.txt")
+        config.num_processes = parser["evaluation"].getint("num_processes", 0)
+        config.log_file = parser["evaluation"].get("log_file", "evaluation_logs.txt")
 
     return config

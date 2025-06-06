@@ -43,21 +43,21 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
     else:
         parser.read(config_file_path, encoding="utf-8")
 
-    if "API" in parser:
-        config.base_url = parser["API"].get("BASE_URL")
-        config.api_key = parser["API"].get("API_KEY")
+    if "api_caller.api" in parser:
+        config.base_url = parser["api_caller.api"].get("base_url")
+        config.api_key = parser["api_caller.api"].get("api_key")
 
     config.base_url = config.base_url or "https://api.gpt.ge/v1"
 
-    if "SETTINGS" in parser:
-        default_model_raw = parser["SETTINGS"].get("DEFAULT_MODEL")
+    if "api_caller.settings" in parser:
+        default_model_raw = parser["api_caller.settings"].get("default_model")
         config.default_model = (
             default_model_raw.strip()
             if default_model_raw and default_model_raw.strip()
             else None
         )
 
-        o_model_kw_str = parser["SETTINGS"].get("OPENAI_O_MODEL_KEYWORDS", "")
+        o_model_kw_str = parser["api_caller.settings"].get("openai_o_model_keywords", "")
         if o_model_kw_str:
             config.openai_o_model_keywords = [
                 kw.strip() for kw in o_model_kw_str.split(",") if kw.strip()
@@ -76,16 +76,14 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
             "o1-preview-all",
         ]
 
-    if "EXECUTION" in parser:
-        config.default_bench_file = parser["EXECUTION"].get("DEFAULT_BENCH_FILE")
-        config.default_target_dir = parser["EXECUTION"].get("DEFAULT_TARGET_DIR")
-        config.num_consumers = parser["EXECUTION"].getint("NUM_CONSUMERS", 10)
-        config.chat_timeout = parser["EXECUTION"].getfloat("CHAT_TIMEOUT", 1200.0)
-        config.repeat_times = parser["EXECUTION"].getint("REPEAT_TIMES", 1)
-        config.max_retries = parser["EXECUTION"].getint("MAX_RETRIES", 5)
-        config.max_task_queue_size = parser["EXECUTION"].getint(
-            "MAX_TASK_QUEUE_SIZE", 100
-        )
+    if "api_caller.execution" in parser:
+        config.default_bench_file = parser["api_caller.execution"].get("default_bench_file")
+        config.default_target_dir = parser["api_caller.execution"].get("default_target_dir")
+        config.num_consumers = parser["api_caller.execution"].getint("num_consumers", 10)
+        config.chat_timeout = parser["api_caller.execution"].getfloat("chat_timeout", 1200.0)
+        config.repeat_times = parser["api_caller.execution"].getint("repeat_times", 1)
+        config.max_retries = parser["api_caller.execution"].getint("max_retries", 5)
+        config.max_task_queue_size = parser["api_caller.execution"].getint("max_task_queue_size", 100)
     else:
         config.num_consumers = 10
         config.chat_timeout = 1200.0
