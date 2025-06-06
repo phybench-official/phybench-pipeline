@@ -24,6 +24,10 @@ processed_list: List[Any] = []
 
 def initialize_logging(log_file_path: str) -> None:
     """Initialize logging with configurable file path."""
+    log_path = Path(log_file_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Log directory created/verified: {log_path.parent}")
+
     with open(log_file_path, "w", encoding="utf-8") as f:
         f.write("")
 
@@ -172,6 +176,10 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
         # print(data)
 
     # 存储data为json
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"Output directory created/verified: {output_path.parent}")
+
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(approved_problems, f, ensure_ascii=False, indent=4)
 
