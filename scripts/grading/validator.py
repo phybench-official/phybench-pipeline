@@ -34,9 +34,7 @@ for formula_a in formulas:
         expre = master_convert(formula)
         tree = sympy_to_tree(expre)
         print(f"Expression{cnt}/{len(formulas)}Validated")
-
     except:
-
         print(f"Wrong formatted Expression{formula}")
         write_file(str(formula))
         write_file("\n")

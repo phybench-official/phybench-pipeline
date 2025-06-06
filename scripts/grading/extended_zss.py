@@ -9,7 +9,6 @@
 from __future__ import annotations
 import collections
 from typing import List, Callable, Any, Optional, Dict
-import numpy as np
 from numpy import zeros, ones
 
 
@@ -46,11 +45,11 @@ class Node(object):
 
 class AnnotatedTree(object):
 
-    def __init__(self, root: Node, get_children: Callable[[Any], List[Any]]) -> None:
+    def __init__(self, root: Any, get_children: Callable[[Any], List[Any]]) -> None:
         self.get_children = get_children
 
         self.root = root
-        self.nodes: List[Node] = list()  # a post-order enumeration of the nodes in the tree
+        self.nodes: List[Any] = list()  # a post-order enumeration of the nodes in the tree
         self.ids: List[int] = list()  # a matching list of ids
         self.lmds: List[int] = list()  # left most descendents of each nodes
         self.keyroots: List[int] = []  # the keyroots in the original paper

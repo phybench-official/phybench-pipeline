@@ -35,9 +35,7 @@ def remove_non_ascii(text: str) -> str:
 import re
 
 
-def extract_bracket_content(
-    s: str, bracket_position: int
-) -> Tuple[Optional[str], int]:
+def extract_bracket_content(s: str, bracket_position: int) -> Tuple[Optional[str], int]:
     start_idx = bracket_position
 
     stack = []
