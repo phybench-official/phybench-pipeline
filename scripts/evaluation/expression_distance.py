@@ -15,15 +15,10 @@ from sympy import (
     pi as Pi,
     E as Exp1,
     oo as Infinity,
-    I,
-    zoo as ComplexInfinity,
 )
 import sympy
 
 NegativeInfinity = -sympy.oo
-ImaginaryUnit = sympy.I
-import numpy as np
-import timeout_decorator
 from timeout_decorator import timeout, TimeoutError
 from .tree_distance import ext_distance
 from .latex_processor import master_convert
@@ -108,7 +103,6 @@ def calc_tree_size(node: TreeNode) -> int:
         - The function modifies the `subtree_size` attribute of the input
           node to store the calculated subtree size for future use.
     """
-    """The size of a subtree equals to its total insertion cost"""
 
     total = insert_cost[node.label.split("_")[0]]
 
@@ -301,7 +295,7 @@ def EED(
 
     if scoring_parameters is None:
         raise ValueError("scoring_parameters must be provided")
-    
+
     if not test_latex:
         return 0, -1, -1, -1
     if "\\int" in test_latex or "\\int" in answer_latex:
@@ -346,7 +340,7 @@ def EED(
             return 100, 0.0, 0, 0
 
     except:
-        print("Something happened during simplification,returning zero")
+        print("Something happened during simplification, returning zero")
         if debug_mode:
             raise SymPyError(
                 f"Failed to simplify the sympy expression. Expressions: answer_exp={answer_exp}, test_exp={test_exp}"

@@ -111,7 +111,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
                     }
                 )
 
-    print(f"Successfully Built Worklist,total_length:{len(work_list)}")
+    print(f"Successfully Built Worklist, total_length:{len(work_list)}")
 
     # scoring
     # 根据final_answer中的模型回答和approved_problems中的答案进行评分,修改final_answer文件
@@ -127,7 +127,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
         results = list(pool.map(process_single_problem, work_list))
 
     t1 = time.time()
-    print(f"Grading Finished,total time:{t1-t0}")
+    print(f"Evaluation Finished, total time: {t1-t0:.2f}s")
 
     # plot
     model_scores, model_nums = {}, {}
