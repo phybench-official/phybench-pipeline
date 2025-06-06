@@ -13,7 +13,7 @@ from sympy import (
     expand,
     posify,
     pi as Pi,
-    E as Exp1,
+    E as EulerNumber,
     oo as Infinity,
 )
 import sympy
@@ -207,7 +207,7 @@ def sympy_to_tree(expr: Any) -> TreeNode:
     Raises:
         ValueError: If the SymPy expression contains an unsupported type.
     Supported Types:
-        - Numbers: Integer, Pi, Exp1, Float, Rational, Infinity, NegativeInfinity
+        - Numbers: Integer, Pi, EulerNumber, Float, Rational, Infinity, NegativeInfinity
         - Symbols: Symbol
         - Binary Operators: Add, Mul, Pow
         - Functions: Any subclass of `sympy.Function`
@@ -219,7 +219,7 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         >>> print(tree)
     """
     # Symbols and constants
-    if isinstance(expr, (Integer, Float, Rational)) or expr in (Pi, Exp1, Infinity, NegativeInfinity):
+    if isinstance(expr, (Integer, Float, Rational)) or expr in (Pi, EulerNumber, Infinity, NegativeInfinity):
         return TreeNode(label="number_" + str(expr), children=[])
     elif isinstance(expr, Symbol):
         return TreeNode(label="symbol_" + str(expr), children=[])
