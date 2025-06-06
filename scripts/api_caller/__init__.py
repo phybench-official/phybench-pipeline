@@ -1,4 +1,4 @@
-from .api_config import load_config, AppConfig, CONFIG_FILE_NAME
+from .api_config import load_config, ApiConfig, CONFIG_FILE_NAME
 from .client import (
     read_problems,
     generate_solution_data,
@@ -11,7 +11,7 @@ from .main import main as run_parallel_caller
 
 __all__ = [
     "load_config",
-    "AppConfig",
+    "ApiConfig",
     "CONFIG_FILE_NAME",
     "read_problems",
     "generate_solution_data",

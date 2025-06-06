@@ -16,7 +16,7 @@ if str(current_dir) not in sys.path:
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from api_config import load_config, AppConfig, CONFIG_FILE_NAME
+from api_config import load_config, ApiConfig, CONFIG_FILE_NAME
 from client import (
     read_problems,
     generate_solution_data,
@@ -26,7 +26,7 @@ from client import (
 )
 from openai import AsyncOpenAI
 
-APP_CONFIG: Optional[AppConfig] = None
+APP_CONFIG: Optional[ApiConfig] = None
 
 task_queue: "queue.Queue[Optional[Dict[str, Any]]]"
 result_queue: "queue.Queue[Optional[Dict[str, Any]]]"
@@ -356,7 +356,7 @@ def result_writer(
     )
 
 
-def parse_args(config: AppConfig) -> argparse.Namespace:
+def parse_args(config: ApiConfig) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Parallel API caller for physics problems"
     )
@@ -510,7 +510,7 @@ def main() -> None:
 
     output_file = get_output_file(target_dir_path, args.model)
 
-    task_queue = queue.Queue(maxsize=APP_CONFIG.max_task_queue_size)
+    task_queue = queue.Queue(maxsize=APP_CONFIG.max_task_queue_size or 0)
     result_queue = queue.Queue()
 
     total_tasks = len(problems) * args.repeat_times

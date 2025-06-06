@@ -59,9 +59,6 @@ discount_slope = 0.6
 simplify_time_limit = 15
 equals_time_limit = 10
 
-initial_score = 60
-scoring_slope = 100
-
 
 def update_func(x: TreeNode, y: TreeNode) -> float:
 
@@ -132,7 +129,7 @@ Scoring function from relative distance
 """
 
 
-def score_calc(tree_dist: float, tree_size: int, parameters: List[int] = [initial_score, scoring_slope]) -> float:
+def score_calc(tree_dist: float, tree_size: int, parameters: List[int]) -> float:
 
     if tree_dist == 0.0:
         return 100
@@ -264,7 +261,7 @@ def EED(
     answer_latex: str,
     test_latex: str,
     debug_mode: bool = False,
-    scoring_parameters: List[int] = [initial_score, scoring_slope],
+    scoring_parameters: Optional[List[int]] = None,
 ) -> Tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
@@ -302,6 +299,9 @@ def EED(
             - distance (float): The raw distance between the two expression trees.
     """
 
+    if scoring_parameters is None:
+        raise ValueError("scoring_parameters must be provided")
+    
     if not test_latex:
         return 0, -1, -1, -1
     if "\\int" in test_latex or "\\int" in answer_latex:

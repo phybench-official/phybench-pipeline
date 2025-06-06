@@ -52,7 +52,7 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
 
 def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
     if not parameters:
-        parameters = [60, 100]
+        raise ValueError("Scoring parameters must be provided and cannot be empty")
 
     # Initialize logging with configurable path
     initialize_logging(log_file)
