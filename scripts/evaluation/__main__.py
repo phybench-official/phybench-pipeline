@@ -18,10 +18,10 @@ def main_entry():
         print("Running with config default parameters...")
         
         # Use config defaults or fallback to original hardcoded values if config is missing
-        gt_file = config.default_gt_file or "./solutions/claude-sonnet-4-0514.json"
-        gen_file = config.default_gen_file or "./god_answer.json"
-        output_dir = config.default_output_dir or "./data_0531.json"
-        scoring_params = config.default_scoring_params or [60, 100]
+        gt_file = config.gt_file or "./solutions/claude-sonnet-4-0514.json"
+        gen_file = config.gen_file or "./god_answer.json"
+        output_dir = config.output_dir or "./data_0531.json"
+        scoring_params = [config.initial_score, config.scoring_slope]
         log_file = config.log_file or "logging.txt"
         
         print(f"  - Ground truth file: {gt_file}")

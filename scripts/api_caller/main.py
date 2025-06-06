@@ -362,16 +362,16 @@ def parse_args(config: AppConfig) -> argparse.Namespace:
     )
     parser.add_argument(
         "--bench-file",
-        default=config.default_bench_file,
+        default=config.bench_file,
         help="Path to the input benchmark JSON file that contains problems",
     )
     parser.add_argument(
         "--target-dir",
-        default=config.default_target_dir,
+        default=config.target_dir,
         help="Target directory to store output files",
     )
     parser.add_argument(
-        "--model", default=config.default_model, help="Model name to use"
+        "--model", default=config.model, help="Model name to use"
     )
     parser.add_argument(
         "--repeat-times",
@@ -466,18 +466,18 @@ def main() -> None:
 
     if not args.bench_file:
         print(
-            "Error: No benchmark file specified. Use --bench-file or set DEFAULT_BENCH_FILE in config."
+            "Error: No benchmark file specified. Use --bench-file or set BENCH_FILE in config."
         )
         return
 
     if not args.target_dir:
         print(
-            "Error: No target directory specified. Use --target-dir or set DEFAULT_TARGET_DIR in config."
+            "Error: No target directory specified. Use --target-dir or set TARGET_DIR in config."
         )
         return
 
     if not args.model or args.model.strip() == "":
-        print("Error: No model specified. Use --model or set DEFAULT_MODEL in config.")
+        print("Error: No model specified. Use --model or set MODEL in config.")
         return
 
     if not APP_CONFIG.api_key:

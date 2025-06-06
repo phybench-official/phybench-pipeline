@@ -12,7 +12,7 @@ class AppConfig:
         self.base_url: Optional[str] = None
         self.api_key: Optional[str] = None
 
-        self.default_model: Optional[str] = None
+        self.model: Optional[str] = None
         self.openai_o_model_keywords: List[str] = []
 
         self.user_prompt: str = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
@@ -21,8 +21,8 @@ The final answer must be a single, fully simplified, and directly parseable LaTe
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
 Use standard LaTeX conventions rigorously."""
 
-        self.default_bench_file: Optional[str] = None
-        self.default_target_dir: Optional[str] = None
+        self.bench_file: Optional[str] = None
+        self.target_dir: Optional[str] = None
         self.num_consumers: int = 100
         self.chat_timeout: float = 1200.0
         self.repeat_times: int = 1
@@ -49,21 +49,21 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
 
     config.base_url = config.base_url or "https://api.gpt.ge/v1"
 
-    if "api_caller.settings" in parser:
-        default_model_raw = parser["api_caller.settings"].get("default_model")
-        config.default_model = (
-            default_model_raw.strip()
-            if default_model_raw and default_model_raw.strip()
+    if "api_caller.model" in parser:
+        model_raw = parser["api_caller.model"].get("model")
+        config.model = (
+            model_raw.strip()
+            if model_raw and model_raw.strip()
             else None
         )
 
-        o_model_kw_str = parser["api_caller.settings"].get("openai_o_model_keywords", "")
+        o_model_kw_str = parser["api_caller.model"].get("openai_o_model_keywords", "")
         if o_model_kw_str:
             config.openai_o_model_keywords = [
                 kw.strip() for kw in o_model_kw_str.split(",") if kw.strip()
             ]
 
-    config.default_model = config.default_model or "gpt-4o"
+    config.model = config.model or "gpt-4o"
     if not config.openai_o_model_keywords:
         config.openai_o_model_keywords = [
             "o3-mini",
@@ -76,9 +76,11 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> AppConfig:
             "o1-preview-all",
         ]
 
+    if "api_caller.paths" in parser:
+        config.bench_file = parser["api_caller.paths"].get("bench_file")
+        config.target_dir = parser["api_caller.paths"].get("target_dir")
+
     if "api_caller.execution" in parser:
-        config.default_bench_file = parser["api_caller.execution"].get("default_bench_file")
-        config.default_target_dir = parser["api_caller.execution"].get("default_target_dir")
         config.num_consumers = parser["api_caller.execution"].getint("num_consumers", 10)
         config.chat_timeout = parser["api_caller.execution"].getfloat("chat_timeout", 1200.0)
         config.repeat_times = parser["api_caller.execution"].getint("repeat_times", 1)

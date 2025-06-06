@@ -199,22 +199,22 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
     )
     parser.add_argument(
         "--gt-file",
-        default=config.default_gt_file,
+        default=config.gt_file,
         help="Path to ground truth JSON file"
     )
     parser.add_argument(
         "--gen-file", 
-        default=config.default_gen_file,
+        default=config.gen_file,
         help="Path to generated answers JSON file"
     )
     parser.add_argument(
         "--output-dir",
-        default=config.default_output_dir, 
+        default=config.output_dir, 
         help="Output directory path for results"
     )
     parser.add_argument(
         "--scoring-params",
-        default=",".join(map(str, config.default_scoring_params)),
+        default=f"{config.initial_score},{config.scoring_slope}",
         help="Scoring parameters as comma-separated values (e.g., '60,100')"
     )
     parser.add_argument(
@@ -238,15 +238,15 @@ def main_cli() -> None:
     args = parse_args(config)
     
     if not args.gt_file:
-        print("Error: No ground truth file specified. Use --gt-file or set DEFAULT_GT_FILE in config.")
+        print("Error: No ground truth file specified. Use --gt-file or set GT_FILE in config.")
         return
         
     if not args.gen_file:
-        print("Error: No generated file specified. Use --gen-file or set DEFAULT_GEN_FILE in config.")
+        print("Error: No generated file specified. Use --gen-file or set GEN_FILE in config.")
         return
         
     if not args.output_dir:
-        print("Error: No output directory specified. Use --output-dir or set DEFAULT_OUTPUT_DIR in config.")
+        print("Error: No output directory specified. Use --output-dir or set OUTPUT_DIR in config.")
         return
     
     # Parse scoring parameters
