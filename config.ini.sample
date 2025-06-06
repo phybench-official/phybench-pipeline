@@ -10,21 +10,21 @@ api_key = your_api_key_here
 
 [api_caller.model]
 # Model to use if not specified by --model argument
-model = test_invalid_model
+model = gpt-4o
 # Comma-separated list of OpenAI 'o' series model keywords (for 'reasoning_effort')
 openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, o4-mini (high), o1, o1-preview-all
 
 [api_caller.paths]
 # Path to the input JSON file with problems (should contain fields: id, tag, content)
-input_file = test.json
+input_file = ./data/ground_truth/test_gt.json
 # Directory to save output JSON files (individual model solution files)
-output_dir = model_solutions
+output_dir = ./data/model_solutions
 
 [api_caller.execution]
 # Number of consumer threads/tasks
 num_consumers = 10
 # API call timeout in seconds
-chat_timeout = 1200.0
+chat_timeout = 1200
 # Number of times to process each problem
 repeat_count = 1
 # Max retries for a failed API call for a single task
@@ -35,14 +35,14 @@ max_task_queue_size = 100
 
 ; -------------------------------- evaluation -------------------------------- ;
 [evaluation.paths]
-# Path to the input JSON file with ground truth (contains reference problems with correct answers)
-gt_file = ./test_gt.json
+# Path to the input JSON file with ground truth (contains problems with correct answers)
+gt_file = ./data/ground_truth/test_gt.json
 # Model answers file path (contains generated solutions from models with fields: id, model, solution, answer, time_taken, etc.)
-model_answers_file = ./test_gen.json
+model_answers_file = ./data/model_solutions/gpt-4o.json
 # Output file path (where the final grading results will be saved)
-output_dir = ./test_grading_results.json
+output_dir = ./data/test.json
 # Log file path
-log_file = evaluation.log
+log_file = ./logs/evaluation.log
 
 [evaluation.scoring]
 # Base score assigned before distance penalty (higher = more lenient, range: 0-100)

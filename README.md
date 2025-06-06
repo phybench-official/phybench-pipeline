@@ -1,8 +1,4 @@
-# api_caller TODO:
-- print -> logger
-- prompt configurable in config.ini
-
-# Grading
+# Evaluation
 
 ## Usage Examples
 
