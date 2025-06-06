@@ -212,9 +212,16 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
         help="Output file path (where the final grading results will be saved)"
     )
     parser.add_argument(
-        "--scoring-params",
-        default=f"{config.initial_score},{config.scoring_slope}",
-        help="Scoring parameters as comma-separated values (e.g., '60,100')"
+        "--initial-score",
+        type=int,
+        default=config.initial_score,
+        help="Base score assigned before distance penalty (higher = more lenient, range: 0-100)"
+    )
+    parser.add_argument(
+        "--scoring-slope",
+        type=int,
+        default=config.scoring_slope,
+        help="Scaling factor for expression distance penalty (higher = steeper penalty curve)"
     )
     parser.add_argument(
         "--num-processes",
@@ -248,11 +255,7 @@ def main_cli() -> None:
         print("Error: No output directory specified. Use --output-dir or set output_file in config.")
         return
 
-    try:
-        scoring_params = [int(x.strip()) for x in args.scoring_params.split(",")]
-    except ValueError:
-        print(f"Error: Invalid scoring parameters '{args.scoring_params}'. Expected format: '60,100'")
-        return
+    scoring_params = [args.initial_score, args.scoring_slope]
     
     print(f"🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
