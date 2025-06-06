@@ -140,7 +140,6 @@ async def consumer_task_processor(
     """
     Continuously fetches tasks from task_queue, processes them using generate_solution_data,
     retries on failure, and puts successful or final-error results onto result_queue.
-    Enhanced version with structured error handling and progressive retry delays.
 
     Args:
         client: An active AsyncOpenAI client.
@@ -225,7 +224,6 @@ def run_consumer_loop(
 def sync_write_solutions(solutions: List[Dict[str, Any]], output_file: Path) -> None:
     """
     Synchronously writes a list of solution dictionaries to a JSON file with backup/recovery mechanism.
-    Enhanced version with backup creation and error recovery.
 
     Args:
         solutions: A list of solution dictionaries (representing the entire dataset to be written).

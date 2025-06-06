@@ -157,8 +157,6 @@ async def generate_solution_data(
 ) -> Dict[str, Any]:
     """
     Generates a solution for a given problem using the specified model with non-streaming API.
-    Enhanced version with physics-specific prompt, model-specific parameters, thinking support,
-    robust error handling, token tracking, and timestamp functionality.
 
     Args:
         async_client_instance: An active AsyncOpenAI client instance.
@@ -170,7 +168,7 @@ async def generate_solution_data(
     Returns:
         A dictionary containing the solution details, including any errors encountered.
     """
-    enhanced_prompt = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
+    user_prompt_prefix = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
 Your final answer must be enclosed strictly within a single \\boxed{} command. 
 The final answer must be a single, fully simplified, and directly parseable LaTeX expression. 
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
@@ -189,14 +187,14 @@ Use standard LaTeX conventions rigorously."""
             "error_message": "Missing question content",
         }
 
-    full_prompt = f"{enhanced_prompt}\nQuestion: {question_text}\n\nPlease provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
+    full_user_prompt = f"{user_prompt_prefix}\nQuestion: {question_text}\n\nPlease provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
 
     start_time = time.time()
 
     try:
         params = {
             "model": model,
-            "messages": [{"role": "user", "content": full_prompt}],
+            "messages": [{"role": "user", "content": full_user_prompt}],
             "timeout": timeout,
         }
 

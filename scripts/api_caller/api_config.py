@@ -15,7 +15,7 @@ class AppConfig:
         self.default_model: Optional[str] = None
         self.openai_o_model_keywords: List[str] = []
 
-        self.enhanced_physics_prompt: str = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
+        self.user_prompt: str = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
 Your final answer must be enclosed strictly within a single \\boxed{} command. 
 The final answer must be a single, fully simplified, and directly parseable LaTeX expression. 
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
