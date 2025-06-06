@@ -5,7 +5,7 @@ Usage: python -m scripts.grading [arguments]
 """
 
 import sys
-from .grading import main_cli, main, load_grading_config
+from .main import main_cli, main, load_evaluation_config
 
 def main_entry():
     """Main entry point for the grading package."""
@@ -14,7 +14,7 @@ def main_entry():
         main_cli()
     else:
         # Legacy execution using config defaults for backward compatibility
-        config = load_grading_config()
+        config = load_evaluation_config()
         print("Running with config default parameters...")
         
         # Use config defaults or fallback to original hardcoded values if config is missing

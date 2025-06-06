@@ -25,8 +25,8 @@ ImaginaryUnit = sympy.I
 import numpy as np
 import timeout_decorator
 from timeout_decorator import timeout, TimeoutError
-from .extended_zss import ext_distance
-from .latex_pre_process import master_convert
+from .tree_distance import ext_distance
+from .latex_processor import master_convert
 
 """
 Guide:

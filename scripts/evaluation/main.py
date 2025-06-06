@@ -6,10 +6,10 @@ import argparse
 import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from .EED import EED
+from .expression_distance import EED
 import multiprocessing
 from tabulate import tabulate
-from .config import load_grading_config, GradingConfig
+from .evaluation_config import load_evaluation_config, EvaluationConfig
 
 progress = 0
 
@@ -51,11 +51,6 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
 
 
 def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
-    """
-    final_answer_f="./solutions/dsr1.json"
-    approved_problems_f="god_answer.json"
-    output_path="./output_data.json"
-    """
     if not parameters:
         parameters = [60, 100]
 
@@ -197,10 +192,10 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
     return s_opt
 
 
-def parse_args(config: GradingConfig) -> argparse.Namespace:
-    """Parse command line arguments for grading."""
+def parse_args(config: EvaluationConfig) -> argparse.Namespace:
+    """Parse command line arguments for evaluation."""
     parser = argparse.ArgumentParser(
-        description="Grade model answers against ground truth using EED scoring"
+        description="Evaluate model answers against ground truth using EED scoring"
     )
     parser.add_argument(
         "--gt-file",
@@ -239,7 +234,7 @@ def parse_args(config: GradingConfig) -> argparse.Namespace:
 
 def main_cli() -> None:
     """Command line interface entry point."""
-    config = load_grading_config()
+    config = load_evaluation_config()
     args = parse_args(config)
     
     if not args.gt_file:
@@ -261,7 +256,7 @@ def main_cli() -> None:
         print(f"Error: Invalid scoring parameters '{args.scoring_params}'. Expected format: '60,100'")
         return
     
-    print(f"🎯 Starting grading process:")
+    print(f"🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
     print(f"  - Generated file: {args.gen_file}")
     print(f"  - Output directory: {args.output_dir}")
