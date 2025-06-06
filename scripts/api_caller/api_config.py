@@ -21,16 +21,16 @@ The final answer must be a single, fully simplified, and directly parseable LaTe
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
 Use standard LaTeX conventions rigorously."""
 
-        self.bench_file: Optional[str] = None
-        self.target_dir: Optional[str] = None
+        self.input_file: Optional[str] = None
+        self.output_dir: Optional[str] = None
         self.num_consumers: Optional[int] = None
         self.chat_timeout: Optional[float] = None
-        self.repeat_times: Optional[int] = None
+        self.repeat_count: Optional[int] = None
         self.max_retries: Optional[int] = None
         self.max_task_queue_size: Optional[int] = None
 
 
-def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfig:
+def load_api_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfig:
     """Loads configuration from an INI file."""
     parser = configparser.ConfigParser()
     config = ApiConfig()
@@ -62,13 +62,13 @@ def load_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfig:
             ]
 
     if "api_caller.paths" in parser:
-        config.bench_file = parser["api_caller.paths"].get("bench_file")
-        config.target_dir = parser["api_caller.paths"].get("target_dir")
+        config.input_file = parser["api_caller.paths"].get("input_file")
+        config.output_dir = parser["api_caller.paths"].get("output_dir")
 
     if "api_caller.execution" in parser:
         config.num_consumers = parser["api_caller.execution"].getint("num_consumers")
         config.chat_timeout = parser["api_caller.execution"].getfloat("chat_timeout")
-        config.repeat_times = parser["api_caller.execution"].getint("repeat_times")
+        config.repeat_count = parser["api_caller.execution"].getint("repeat_count")
         config.max_retries = parser["api_caller.execution"].getint("max_retries")
         config.max_task_queue_size = parser["api_caller.execution"].getint("max_task_queue_size")
 

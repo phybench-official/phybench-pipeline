@@ -16,7 +16,7 @@ if str(current_dir) not in sys.path:
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from api_config import load_config, ApiConfig, CONFIG_FILE_NAME
+from api_config import load_api_config, ApiConfig, CONFIG_FILE_NAME
 from client import (
     read_problems,
     generate_solution_data,
@@ -74,7 +74,7 @@ def is_error_solution(solution: Dict[str, Any]) -> bool:
 def producer(
     problems: List[Dict[str, Any]],
     model: str,
-    repeat_times: int,
+    repeat_count: int,
     output_file: Path,
     pbar_desc: str = "Producing tasks",
 ) -> None:
@@ -84,7 +84,7 @@ def producer(
     Args:
         problems: A list of problem dictionaries.
         model: The model name to use for these tasks.
-        repeat_times: How many times each problem should be processed.
+        repeat_count: How many times each problem should be processed.
         output_file: Path to output file for checking existing solutions.
         pbar_desc: Description for the tqdm progress bar.
     """
@@ -96,11 +96,11 @@ def producer(
     completed_tasks = check_existing_solutions(output_file)
     completed_for_model = completed_tasks.get(model, set())
 
-    total_possible_tasks = len(problems) * repeat_times
+    total_possible_tasks = len(problems) * repeat_count
     tasks_to_add = []
     skipped_count = 0
 
-    for repeat_idx in range(repeat_times):
+    for repeat_idx in range(repeat_count):
         for problem in problems:
             problem_id = problem.get("id", "N/A")
             task_key = f"{problem_id}_{repeat_idx}"
@@ -361,22 +361,22 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
         description="Parallel API caller for physics problems"
     )
     parser.add_argument(
-        "--bench-file",
-        default=config.bench_file,
-        help="Path to the input benchmark JSON file that contains problems",
+        "--input-file",
+        default=config.input_file,
+        help="Path to the input JSON file that contains problems (should contain fields: id, tag, content, solution, answer)",
     )
     parser.add_argument(
-        "--target-dir",
-        default=config.target_dir,
-        help="Target directory to store output files",
+        "--output-dir",
+        default=config.output_dir,
+        help="Directory to store output files (individual model solution files)",
     )
     parser.add_argument(
         "--model", default=config.model, help="Model name to use"
     )
     parser.add_argument(
-        "--repeat-times",
+        "--repeat-count",
         type=int,
-        default=config.repeat_times,
+        default=config.repeat_count,
         help="Number of times to repeat each problem",
     )
     parser.add_argument(
@@ -461,31 +461,30 @@ async def validate_model(
 def main() -> None:
     global APP_CONFIG, task_queue, result_queue
 
-    APP_CONFIG = load_config()
+    APP_CONFIG = load_api_config()
     args = parse_args(APP_CONFIG)
-
-    if not args.bench_file:
+    if not args.input_file:
         print(
-            "Error: No benchmark file specified. Use --bench-file or set BENCH_FILE in config."
+            "Error: No input file specified. Use --input-file or set input_file in config."
         )
         return
 
-    if not args.target_dir:
+    if not args.output_dir:
         print(
-            "Error: No target directory specified. Use --target-dir or set TARGET_DIR in config."
+            "Error: No output directory specified. Use --output-dir or set output_dir in config."
         )
         return
 
     if not args.model or args.model.strip() == "":
-        print("Error: No model specified. Use --model or set MODEL in config.")
+        print("Error: No model specified. Use --model or set model in config.")
         return
 
     if not APP_CONFIG.api_key:
-        print("Error: No API key specified. Please set API_KEY in config.")
+        print("Error: No API key specified. Please set api_key in config.")
         return
 
     if not APP_CONFIG.base_url:
-        print("Error: No base URL specified. Please set BASE_URL in config.")
+        print("Error: No base URL specified. Please set base_url in config.")
         return
 
     print(f"🔍 Validating model '{args.model}'...")
@@ -499,33 +498,32 @@ def main() -> None:
     print(f"✅ Model '{args.model}' validated successfully.")
 
     initialize_globals_from_config(APP_CONFIG.openai_o_model_keywords)
-
-    problems = read_problems(args.bench_file)
+    problems = read_problems(args.input_file)
     if not problems:
         print("No problems loaded. Exiting.")
         return
 
-    target_dir_path = Path(args.target_dir)
-    target_dir_path.mkdir(parents=True, exist_ok=True)
+    output_dir_path = Path(args.output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
 
-    output_file = get_output_file(target_dir_path, args.model)
+    output_file = get_output_file(output_dir_path, args.model)
 
     task_queue = queue.Queue(maxsize=APP_CONFIG.max_task_queue_size or 0)
     result_queue = queue.Queue()
 
-    total_tasks = len(problems) * args.repeat_times
+    total_tasks = len(problems) * args.repeat_count
 
     print(f"🚀 Starting parallel processing:")
     print(f"  - Model: {args.model}")
     print(f"  - Problems: {len(problems)}")
-    print(f"  - Repeat times: {args.repeat_times}")
+    print(f"  - Repeat count: {args.repeat_count}")
     print(f"  - Total tasks: {total_tasks}")
     print(f"  - Consumers: {args.num_consumers}")
     print(f"  - Output: {output_file}")
 
     producer_thread = threading.Thread(
         target=producer,
-        args=(problems, args.model, args.repeat_times, output_file, "Producing tasks"),
+        args=(problems, args.model, args.repeat_count, output_file, "Producing tasks"),
     )
 
     consumer_threads = []

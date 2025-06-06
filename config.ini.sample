@@ -15,10 +15,10 @@ model = test_invalid_model
 openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, o4-mini (high), o1, o1-preview-all
 
 [api_caller.paths]
-# Path to the input JSON file with problems
-bench_file = test.json
-# Directory to save output JSON files
-target_dir = model_solutions
+# Path to the input JSON file with problems (should contain fields: id, tag, content)
+input_file = test.json
+# Directory to save output JSON files (individual model solution files)
+output_dir = model_solutions
 
 [api_caller.execution]
 # Number of consumer threads/tasks
@@ -26,7 +26,7 @@ num_consumers = 10
 # API call timeout in seconds
 chat_timeout = 1200.0
 # Number of times to process each problem
-repeat_times = 1
+repeat_count = 1
 # Max retries for a failed API call for a single task
 max_retries = 5
 # Max items in the task_queue
@@ -35,11 +35,11 @@ max_task_queue_size = 100
 
 ; -------------------------------- evaluation -------------------------------- ;
 [evaluation.paths]
-# Ground truth file path
+# Path to the input JSON file with ground truth (contains reference problems with correct answers)
 gt_file = ./test_gt.json
-# Generated answers file path
-gen_file = ./test_gen.json
-# Output directory
+# Model answers file path (contains generated solutions from models with fields: id, model, solution, answer, time_taken, etc.)
+model_answers_file = ./test_gen.json
+# Output file path (where the final grading results will be saved)
 output_dir = ./test_grading_results.json
 # Log file path
 log_file = evaluation.log

@@ -200,17 +200,17 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
     parser.add_argument(
         "--gt-file",
         default=config.gt_file,
-        help="Path to ground truth JSON file"
+        help="Path to ground truth JSON file (contains reference problems with correct answers)"
     )
     parser.add_argument(
-        "--gen-file", 
-        default=config.gen_file,
-        help="Path to generated answers JSON file"
+        "--model-answers-file", 
+        default=config.model_answers_file,
+        help="Path to model answers JSON file (contains generated solutions from models)"
     )
     parser.add_argument(
         "--output-dir",
         default=config.output_dir, 
-        help="Output directory path for results"
+        help="Output file path (where the final grading results will be saved)"
     )
     parser.add_argument(
         "--scoring-params",
@@ -241,8 +241,8 @@ def main_cli() -> None:
         print("Error: No ground truth file specified. Use --gt-file or set GT_FILE in config.")
         return
         
-    if not args.gen_file:
-        print("Error: No generated file specified. Use --gen-file or set GEN_FILE in config.")
+    if not args.model_answers_file:
+        print("Error: No model answers file specified. Use --model-answers-file or set model_answers_file in config.")
         return
         
     if not args.output_dir:
@@ -258,11 +258,11 @@ def main_cli() -> None:
     
     print(f"🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
-    print(f"  - Generated file: {args.gen_file}")
+    print(f"  - Model answers file: {args.model_answers_file}")
     print(f"  - Output directory: {args.output_dir}")
     print(f"  - Scoring parameters: {scoring_params}")
     print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
     print(f"  - Log file: {args.log_file}")
     
-    result_table = main(args.gt_file, args.gen_file, args.output_dir, scoring_params, args.log_file)
+    result_table = main(args.gt_file, args.model_answers_file, args.output_dir, scoring_params, args.log_file)
     print(result_table)
