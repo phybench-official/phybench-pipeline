@@ -219,11 +219,9 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         >>> print(tree)
     """
     # Symbols and constants
-    if isinstance(
-        expr, (Integer, Pi, Exp1, Float, Rational, Infinity, NegativeInfinity)
-    ):
+    if isinstance(expr, (Integer, Float, Rational)) or expr in (Pi, Exp1, Infinity, NegativeInfinity):
         return TreeNode(label="number_" + str(expr), children=[])
-    elif isinstance(expr, (Symbol,)):
+    elif isinstance(expr, Symbol):
         return TreeNode(label="symbol_" + str(expr), children=[])
 
     # Binary operators
