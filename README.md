@@ -1,6 +1,6 @@
 # PhyBench Pipeline
 
-A comprehensive physics problem evaluation pipeline that generates model solutions and evaluates them using expression edit distance (EED) metrics.
+A comprehensive LLM performance evaluation pipeline that generates model solutions and evaluates them using expression edit distance (EED) metrics.
 
 ## Overview
 

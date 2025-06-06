@@ -1,7 +1,7 @@
 [project]
 name = "phybench-pipeline"
 version = "0.1.0"
-description = "Add your description here"
+description = "A comprehensive LLM performance evaluation pipeline that generates model solutions and evaluates them using expression edit distance (EED) metrics."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
