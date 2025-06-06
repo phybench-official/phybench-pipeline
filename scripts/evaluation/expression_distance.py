@@ -19,7 +19,8 @@ from sympy import (
 import sympy
 
 NegativeInfinity = -sympy.oo
-from timeout_decorator import timeout, TimeoutError
+import threading
+import time
 from .tree_distance import ext_distance
 from .latex_processor import master_convert
 
@@ -29,7 +30,6 @@ You only need to use EED and install the following packages:
 - sympy
 - numpy
 - latex2sympy2_extended
-- timeout_decorator
 """
 
 """
@@ -130,9 +130,44 @@ def score_calc(tree_dist: float, tree_size: int, parameters: List[int]) -> float
     return max(0, parameters[0] - parameters[1] * tree_dist / tree_size)
 
 
-@timeout(30, timeout_exception=TimeoutError)
+class TimeoutError(Exception):
+    pass
+
+
+def with_timeout(timeout_seconds):
+    """Windows-compatible timeout decorator using threading"""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            result = [None]
+            exception = [None]
+            
+            def target():
+                try:
+                    result[0] = func(*args, **kwargs)
+                except Exception as e:
+                    exception[0] = e
+            
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()
+            thread.join(timeout_seconds)
+            
+            if thread.is_alive():
+                raise TimeoutError(f"Function timed out after {timeout_seconds} seconds")
+            
+            if exception[0] is not None:
+                raise exception[0]
+            
+            return result[0]
+        return wrapper
+    return decorator
+
+
 def simplify_with_timeout(expr: Any) -> Any:
-    return simplify(expr)
+    @with_timeout(30)
+    def _simplify(expr):
+        return simplify(expr)
+    return _simplify(expr)
 
 
 def time_simplify(expr: Any) -> Any:
@@ -143,9 +178,11 @@ def time_simplify(expr: Any) -> Any:
         return expr
 
 
-@timeout(10, timeout_exception=TimeoutError)
 def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
-    return expr1.equals(expr2)
+    @with_timeout(10)
+    def _equals(expr1, expr2):
+        return expr1.equals(expr2)
+    return _equals(expr1, expr2)
 
 
 def time_equal(expr1: Any, expr2: Any) -> bool:
@@ -187,19 +224,16 @@ def sympy_to_tree(expr: Any) -> TreeNode:
     ):
         return TreeNode(label="number_" + str(expr), children=[])
     elif isinstance(expr, (Symbol,)):
-
         return TreeNode(label="symbol_" + str(expr), children=[])
 
     # Binary operators
     elif isinstance(expr, (Add, Mul, Pow)):
-
         op_name = type(expr).__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
         return TreeNode(label="operator_" + op_name, children=children)
 
     # Functions
-    elif isinstance(expr, (Function)):
-
+    elif isinstance(expr, Function):
         func_name = expr.func.__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
         return TreeNode(label="function_" + func_name, children=children)
