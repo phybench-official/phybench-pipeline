@@ -45,7 +45,7 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     t1 = time.time()
 
     with open(log_file_path, "a", encoding="utf-8") as f:
-        f.write(f"Finished processed {model_name} Problem{data['id']}, Time{t1-t0}\n")
+        f.write(f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1-t0:.2f}s\n")
 
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
