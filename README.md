@@ -9,7 +9,7 @@
 ### Command Line Interface (RECOMMENDED)
 ```powershell
 # Use CLI with custom parameters
-python -m scripts.evaluation --input-file test_gt.json --model-answers-file test_gen.json --output-dir results.json --scoring-params "80,120" --log-file custom.log
+python -m scripts.evaluation --gt-file test_gt.json --model-answers-file test_gen.json --output-dir results.json --scoring-params "80,120" --log-file custom.log
 
 # Use with config defaults
 python -m scripts.evaluation
@@ -30,7 +30,7 @@ result = main('gt.json', 'model_answers.json', 'out.json', [60, 100], 'log.txt')
 ### Configuration Management
 ```ini
 [evaluation.paths]
-input_file = ./test_gt.json
+gt_file = ./test_gt.json
 model_answers_file = ./test_gen.json
 output_dir = ./results.json
 log_file = evaluation.log
