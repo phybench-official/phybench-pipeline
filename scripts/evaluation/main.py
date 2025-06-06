@@ -57,8 +57,8 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
     # Initialize logging with configurable path
     initialize_logging(log_file)
 
-    final_answer_f = gt_file_dir
-    approved_problems_f = gen_file_dir
+    final_answer_f = gen_file_dir
+    approved_problems_f = gt_file_dir
     output_path = output_dir
 
     with open(final_answer_f, "r", encoding="utf-8") as f:
@@ -97,7 +97,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
             # print(id_number,model)
             query_answer = (id_number, model)
             if query_answer in final_answer_dict:
-                model_answer = final_answer_dict[(id_number, model)]["answer"]
+                model_answer = final_answer_dict[(id_number, model)]["boxed_answer"]
                 right_answer = approved_problems_dict[id_number]["answer"]
 
                 work_list.append(
@@ -155,7 +155,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
         approved_problems_dict[problem_id]["model_name"].append(model)
         approved_problems_dict[problem_id]["model_score"].append(score_i)
         approved_problems_dict[problem_id]["model_answer"].append(
-            final_answer_dict[(problem_id, model)]["answer"]
+            final_answer_dict[(problem_id, model)]["boxed_answer"]
         )
 
         dist_data.append(rel_dist)
