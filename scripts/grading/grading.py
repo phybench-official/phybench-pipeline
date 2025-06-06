@@ -21,8 +21,11 @@ def write_log(s: str, file: str = "./logs.txt") -> None:
 
 processing_lis: List[Any] = []
 processed_list: List[Any] = []
-with open("logging.txt", "w", encoding="utf-8") as f:
-    f.write("")
+
+def initialize_logging(log_file_path: str) -> None:
+    """Initialize logging with configurable file path."""
+    with open(log_file_path, "w", encoding="utf-8") as f:
+        f.write("")
 
 
 def process_single_problem(data: Dict[str, Any]) -> List[Any]:
@@ -30,6 +33,7 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
     problem_id = data["id"]
+    log_file_path = data.get("log_file_path", "logging.txt")
 
     scoring_pars = data["scoring_pars"]
 
@@ -40,13 +44,13 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     )
     t1 = time.time()
 
-    with open("logging.txt", "a", encoding="utf-8") as f:
-        f.write(f"Finished processed{model_name}Problem{data['id']},Time{t1-t0}\n")
+    with open(log_file_path, "a", encoding="utf-8") as f:
+        f.write(f"Finished processed {model_name} Problem{data['id']}, Time{t1-t0}\n")
 
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
 
-def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]]) -> str:
+def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
     """
     final_answer_f="./solutions/dsr1.json"
     approved_problems_f="god_answer.json"
@@ -54,6 +58,9 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
     """
     if not parameters:
         parameters = [60, 100]
+
+    # Initialize logging with configurable path
+    initialize_logging(log_file)
 
     final_answer_f = gt_file_dir
     approved_problems_f = gen_file_dir
@@ -105,6 +112,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
                         "model_answer": model_answer,
                         "right_answer": right_answer,
                         "scoring_pars": parameters,
+                        "log_file_path": log_file,
                     }
                 )
 
@@ -261,20 +269,5 @@ def main_cli() -> None:
     print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
     print(f"  - Log file: {args.log_file}")
     
-    result_table = main(args.gt_file, args.gen_file, args.output_dir, scoring_params)
+    result_table = main(args.gt_file, args.gen_file, args.output_dir, scoring_params, args.log_file)
     print(result_table)
-
-
-if __name__ == "__main__":
-    # Use CLI if command line arguments provided, otherwise use hardcoded values for backward compatibility
-    if len(sys.argv) > 1:
-        main_cli()
-    else:
-        # Legacy hardcoded execution for backward compatibility
-        print("Running with legacy hardcoded parameters...")
-        main(
-            "./solutions/claude-sonnet-4-0514.json",
-            "./god_answer.json",
-            f"./data_0531.json",
-            [60, 100],
-        )
