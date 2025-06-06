@@ -198,8 +198,8 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
         description="Evaluate model answers against ground truth using EED scoring"
     )
     parser.add_argument(
-        "--gt-file",
-        default=config.gt_file,
+        "--input-file",
+        default=config.input_file,
         help="Path to ground truth JSON file (contains reference problems with correct answers)"
     )
     parser.add_argument(
@@ -237,8 +237,8 @@ def main_cli() -> None:
     config = load_evaluation_config()
     args = parse_args(config)
     
-    if not args.gt_file:
-        print("Error: No ground truth file specified. Use --gt-file or set GT_FILE in config.")
+    if not args.input_file:
+        print("Error: No ground truth file specified. Use --input-file or set input_file in config.")
         return
         
     if not args.model_answers_file:
@@ -257,12 +257,12 @@ def main_cli() -> None:
         return
     
     print(f"🎯 Starting evaluation process:")
-    print(f"  - Ground truth file: {args.gt_file}")
+    print(f"  - Ground truth file: {args.input_file}")
     print(f"  - Model answers file: {args.model_answers_file}")
     print(f"  - Output directory: {args.output_dir}")
     print(f"  - Scoring parameters: {scoring_params}")
     print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
     print(f"  - Log file: {args.log_file}")
     
-    result_table = main(args.gt_file, args.model_answers_file, args.output_dir, scoring_params, args.log_file)
+    result_table = main(args.input_file, args.model_answers_file, args.output_dir, scoring_params, args.log_file)
     print(result_table)

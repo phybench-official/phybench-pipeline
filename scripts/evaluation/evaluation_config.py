@@ -9,7 +9,7 @@ class EvaluationConfig:
     """Holds grading configuration."""
 
     def __init__(self):
-        self.gt_file: Optional[str] = None
+        self.input_file: Optional[str] = None
         self.model_answers_file: Optional[str] = None
         self.output_dir: Optional[str] = None
         self.log_file: Optional[str] = None
@@ -32,7 +32,7 @@ def load_evaluation_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> E
     parser.read(config_file_path, encoding="utf-8")
 
     if "evaluation.paths" in parser:
-        config.gt_file = parser["evaluation.paths"].get("gt_file")
+        config.input_file = parser["evaluation.paths"].get("input_file")
         config.model_answers_file = parser["evaluation.paths"].get("model_answers_file")
         config.output_dir = parser["evaluation.paths"].get("output_dir")
         config.log_file = parser["evaluation.paths"].get("log_file")
