@@ -322,7 +322,6 @@ def EED(
     try:
 
         answer_exp, rep1 = posify(answer_exp)
-
         answer_exp = time_simplify(answer_exp)
 
         test_exp, rep2 = posify(test_exp)
@@ -339,11 +338,11 @@ def EED(
         if time_equal(answer_exp, test_exp):
             return 100, 0.0, 0, 0
 
-    except:
-        print("Something happened during simplification, returning zero")
+    except Exception as e:
+        print(f"Something happened during simplification, returning zero: {type(e).__name__}: {e}")
         if debug_mode:
             raise SymPyError(
-                f"Failed to simplify the sympy expression. Expressions: answer_exp={answer_exp}, test_exp={test_exp}"
+                f"Failed to simplify the sympy expression. Error: {e}"
             )
         return 0, -1, -1, -1
 
