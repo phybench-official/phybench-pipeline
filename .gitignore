@@ -26,6 +26,7 @@ test_results/
 model_solutions/
 
 # Logs
+logs/
 *.log
 
 # Temporary files

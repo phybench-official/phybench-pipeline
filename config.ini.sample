@@ -16,9 +16,9 @@ openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, 
 
 [api_caller.paths]
 # Path to the input JSON file with problems (should contain fields: id, tag, content)
-input_file = ./data/ground_truth/test_gt.json
+input_file = data/ground_truth/test.json
 # Directory to save output JSON files (individual model solution files)
-output_dir = ./data/model_solutions
+output_dir = data/model_solutions
 
 [api_caller.execution]
 # Number of consumer threads/tasks
@@ -36,13 +36,13 @@ max_task_queue_size = 100
 ; -------------------------------- evaluation -------------------------------- ;
 [evaluation.paths]
 # Path to the input JSON file with ground truth (contains problems with correct answers)
-gt_file = ./data/ground_truth/test_gt.json
+gt_file = data/ground_truth/test.json
 # Model answers file path (contains generated solutions from models with fields: id, model, solution, answer, time_taken, etc.)
-model_answers_file = ./data/model_solutions/gpt-4o.json
+model_answers_file = data/model_solutions/gpt-4o.json
 # Output file path (where the final grading results will be saved)
-output_dir = ./data/test.json
+output_dir = data/test.json
 # Log file path
-log_file = ./logs/evaluation.log
+log_file = logs/evaluation.log
 
 [evaluation.scoring]
 # Base score assigned before distance penalty (higher = more lenient, range: 0-100)
