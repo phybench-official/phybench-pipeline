@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Dict, List, Tuple, Any, Optional, Union
+import threading
 from sympy import (
     Symbol,
     Integer,
@@ -138,14 +139,14 @@ def with_timeout(timeout_seconds):
     """Windows-compatible timeout decorator using threading"""
     def decorator(func):
         def wrapper(*args, **kwargs):
-            result = [None]
-            exception = [None]
+            result: List[Any] = []
+            exception: List[Exception] = []
             
             def target():
                 try:
-                    result[0] = func(*args, **kwargs)
+                    result.append(func(*args, **kwargs))
                 except Exception as e:
-                    exception[0] = e
+                    exception.append(e)
             
             thread = threading.Thread(target=target)
             thread.daemon = True
@@ -155,10 +156,10 @@ def with_timeout(timeout_seconds):
             if thread.is_alive():
                 raise TimeoutError(f"Function timed out after {timeout_seconds} seconds")
             
-            if exception[0] is not None:
+            if exception:
                 raise exception[0]
             
-            return result[0]
+            return result[0] if result else None
         return wrapper
     return decorator
 
@@ -402,7 +403,6 @@ def EED(
         update_cost=update_func,
     )
     try:
-
         distance = ext_distance(
             tree_test,
             tree_answer,
