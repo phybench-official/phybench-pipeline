@@ -1,5 +1,5 @@
-from .config import load_config, AppConfig, CONFIG_FILE_NAME
-from .api_utils import (
+from .api_config import load_config, AppConfig, CONFIG_FILE_NAME
+from .client import (
     read_problems,
     generate_solution_data,
     create_async_client,
@@ -7,7 +7,7 @@ from .api_utils import (
     initialize_globals_from_config,
     process_problem,
 )
-from .parallel_caller import main as run_parallel_caller
+from .main import main as run_parallel_caller
 
 __all__ = [
     "load_config",

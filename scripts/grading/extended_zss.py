@@ -113,7 +113,7 @@ def ext_distance(
 
 
     Return:
-        Distance(float):the tree editing distance
+        Distance(float): the tree editing distance
     """
     tree_A, tree_B = AnnotatedTree(A, get_children), AnnotatedTree(B, get_children)
     size_a = len(tree_A.nodes)
