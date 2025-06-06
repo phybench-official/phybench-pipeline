@@ -50,7 +50,7 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
 
-def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
+def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
     if not parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
 
@@ -59,7 +59,6 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
 
     final_answer_f = gen_file_dir
     approved_problems_f = gt_file_dir
-    output_path = output_dir
 
     with open(final_answer_f, "r", encoding="utf-8") as f:
         final_answer = json.load(f)
@@ -173,7 +172,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_dir: str, parameters: Optio
         # print(data)
 
     # 存储data为json
-    with open(output_path, "w", encoding="utf-8") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(approved_problems, f, ensure_ascii=False, indent=4)
 
     output_table = []
@@ -209,7 +208,7 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        default=config.output_dir, 
+        default=config.output_file, 
         help="Output file path (where the final grading results will be saved)"
     )
     parser.add_argument(
@@ -238,18 +237,17 @@ def main_cli() -> None:
     args = parse_args(config)
     
     if not args.gt_file:
-        print("Error: No ground truth file specified. Use --gt-file or set GT_FILE in config.")
+        print("Error: No ground truth file specified. Use --gt-file or set gt_file in config.")
         return
         
     if not args.model_answers_file:
         print("Error: No model answers file specified. Use --model-answers-file or set model_answers_file in config.")
         return
         
-    if not args.output_dir:
-        print("Error: No output directory specified. Use --output-dir or set OUTPUT_DIR in config.")
+    if not args.output_file:
+        print("Error: No output directory specified. Use --output-dir or set output_file in config.")
         return
-    
-    # Parse scoring parameters
+
     try:
         scoring_params = [int(x.strip()) for x in args.scoring_params.split(",")]
     except ValueError:
@@ -259,10 +257,10 @@ def main_cli() -> None:
     print(f"🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
     print(f"  - Model answers file: {args.model_answers_file}")
-    print(f"  - Output directory: {args.output_dir}")
+    print(f"  - Output directory: {args.output_file}")
     print(f"  - Scoring parameters: {scoring_params}")
     print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
     print(f"  - Log file: {args.log_file}")
     
-    result_table = main(args.gt_file, args.model_answers_file, args.output_dir, scoring_params, args.log_file)
+    result_table = main(args.gt_file, args.model_answers_file, args.output_file, scoring_params, args.log_file)
     print(result_table)

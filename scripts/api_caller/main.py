@@ -367,7 +367,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        default=config.output_dir,
+        default=config.output_file,
         help="Directory to store output files (individual model solution files)",
     )
     parser.add_argument(

@@ -22,7 +22,7 @@ Do NOT include integral symbol, multiple lines, piecewise cases, summation symbo
 Use standard LaTeX conventions rigorously."""
 
         self.input_file: Optional[str] = None
-        self.output_dir: Optional[str] = None
+        self.output_file: Optional[str] = None
         self.num_consumers: Optional[int] = None
         self.chat_timeout: Optional[float] = None
         self.repeat_count: Optional[int] = None
@@ -63,7 +63,7 @@ def load_api_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfi
 
     if "api_caller.paths" in parser:
         config.input_file = parser["api_caller.paths"].get("input_file")
-        config.output_dir = parser["api_caller.paths"].get("output_dir")
+        config.output_file = parser["api_caller.paths"].get("output_dir")
 
     if "api_caller.execution" in parser:
         config.num_consumers = parser["api_caller.execution"].getint("num_consumers")

@@ -20,8 +20,8 @@ def main_entry():
                 raise ValueError("Ground truth file (gt_file) must be specified in config.ini")
             if not config.model_answers_file:
                 raise ValueError("Model answers file (model_answers_file) must be specified in config.ini")
-            if not config.output_dir:
-                raise ValueError("Output directory (output_dir) must be specified in config.ini")
+            if not config.output_file:
+                raise ValueError("Output directory (output_file) must be specified in config.ini")
             if config.initial_score is None:
                 raise ValueError("Initial score (initial_score) must be specified in config.ini")
             if config.scoring_slope is None:
@@ -32,11 +32,11 @@ def main_entry():
             
             print(f"  - Ground truth file: {config.gt_file}")
             print(f"  - Model answers file: {config.model_answers_file}")
-            print(f"  - Output directory: {config.output_dir}")
+            print(f"  - Output directory: {config.output_file}")
             print(f"  - Scoring parameters: {scoring_params}")
             print(f"  - Log file: {log_file}")
             
-            main(config.gt_file, config.model_answers_file, config.output_dir, scoring_params, log_file)
+            main(config.gt_file, config.model_answers_file, config.output_file, scoring_params, log_file)
         except (FileNotFoundError, ValueError) as e:
             print(f"Configuration error: {e}")
             print("Please check your config.ini file or use command line arguments.")
