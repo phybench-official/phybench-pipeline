@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Entry point for the grading module when run as a package.
-Usage: python -m scripts.grading [arguments]
+Entry point for the evaluation module when run as a package.
+Usage: python -m scripts.evaluation [arguments]
 """
 
 import sys

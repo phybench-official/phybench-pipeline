@@ -2,7 +2,6 @@ from __future__ import annotations
 import json
 import time
 import argparse
-import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from .expression_distance import EED

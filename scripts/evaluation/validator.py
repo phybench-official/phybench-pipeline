@@ -1,8 +1,8 @@
 from __future__ import annotations
 import json
 from typing import List, Dict, Any
-from latex_pre_process import *
-from EED import *
+from latex_processor import *
+from expression_distance import *
 
 # 读取 Excel 文件（默认读取第一个工作表）
 file_path = "./solutions/claude-sonnet-4-0514.json"

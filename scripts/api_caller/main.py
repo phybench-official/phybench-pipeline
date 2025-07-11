@@ -16,12 +16,11 @@ if str(current_dir) not in sys.path:
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from api_config import load_api_config, ApiConfig, CONFIG_FILE_NAME
+from api_config import load_api_config, ApiConfig
 from client import (
     read_problems,
     generate_solution_data,
     create_async_client,
-    extract_boxed_answer,
     initialize_globals_from_config,
 )
 from openai import AsyncOpenAI
