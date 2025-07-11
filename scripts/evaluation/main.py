@@ -98,7 +98,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
             # print(id_number,model)
             query_answer = (id_number, model)
             if query_answer in final_answer_dict:
-                model_answer = final_answer_dict[(id_number, model)]["boxed_answer"]
+                model_answer = final_answer_dict[(id_number, model)]["model_answer"]
                 right_answer = approved_problems_dict[id_number]["answer"]
 
                 work_list.append(
@@ -156,7 +156,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
         approved_problems_dict[problem_id]["model_name"].append(model)
         approved_problems_dict[problem_id]["model_score"].append(score_i)
         approved_problems_dict[problem_id]["model_answer"].append(
-            final_answer_dict[(problem_id, model)]["boxed_answer"]
+            final_answer_dict[(problem_id, model)]["model_answer"]
         )
 
         dist_data.append(rel_dist)

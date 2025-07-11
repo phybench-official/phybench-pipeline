@@ -216,7 +216,7 @@ Use standard LaTeX conventions rigorously."""
             "id": problem.get("id", "N/A"),
             "model": model,
             "solution": solution_content,
-            "boxed_answer": boxed_answer,
+            "model_answer": boxed_answer,
             "timestamp": time.time(),
             "time_taken": time_taken,
             "repeat_index": repeat_idx,

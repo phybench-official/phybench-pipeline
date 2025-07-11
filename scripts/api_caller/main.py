@@ -178,7 +178,7 @@ async def consumer_task_processor(
                             "id": problem.get("id", "N/A"),
                             "model": model,
                             "solution": f"Error after {max_retries} retries: {str(e)}",
-                            "boxed_answer": "",
+                            "model_answer": "",
                             "timestamp": time.time(),
                             "time_taken": 0.0,
                             "repeat_index": repeat_idx,

@@ -128,7 +128,7 @@ def remove_command(s: str, command: str, keep_inside: bool = False) -> str:
 
     Examples:
         >>> remove_command("This is \\textbf{bold text}.", "\\textbf")
-        'This is bold text.'
+        'This is .'
 
         >>> remove_command("This is \\textbf{bold text}.", "\\textbf", keep_inside=True)
         'This is bold text.'
@@ -141,7 +141,6 @@ def remove_command(s: str, command: str, keep_inside: bool = False) -> str:
         return s
     end_index = pos + len(command)
     level = 0
-    escaped = False
     # print(end_index,s[end_index])
     if end_index < len(s) and s[end_index] == "{":
         while end_index < len(s):

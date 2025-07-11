@@ -40,7 +40,7 @@ gt_file = data/ground_truth/test.json
 # Model answers file path (contains generated solutions from models with fields: id, model, solution, answer, time_taken, etc.)
 model_answers_file = data/model_solutions/gpt-4o.json
 # Path to save output JSON file (the final evaluation results)
-output_file = data/evaluation_results/gpt-4o.json
+output_file = data/evaluation_results/test.json
 # Log file path
 log_file = logs/evaluation.log
 
