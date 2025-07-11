@@ -171,6 +171,37 @@ Score formula: `max(0, initial_score - scoring_slope × (distance / tree_size))`
 - Python ≥ 3.13
 - Dependencies: sympy, latex2sympy2-extended, numpy
 
+### Development Setup
+
+#### Code Quality Tools
+The project uses **Ruff** for linting and formatting, with **pre-commit** hooks for automatic checks:
+
+```bash
+# Install development dependencies (includes Ruff)
+uv sync
+
+# Install pre-commit hooks
+pre-commit install
+
+# Run linting manually
+uv run ruff check scripts/
+
+# Run formatting manually
+uv run ruff format scripts/
+
+# Run both linting and formatting on all files
+pre-commit run --all-files
+```
+
+#### Pre-commit Hooks
+Pre-commit hooks automatically run on each commit and include:
+- **Ruff Linter**: Checks code style, imports, and common issues
+- **Ruff Formatter**: Ensures consistent code formatting
+
+Configuration files:
+- `.pre-commit-config.yaml`: Pre-commit hook configuration
+- `pyproject.toml`: Ruff configuration under `[tool.ruff]`
+
 ### Configuration Management
 - Copy `config.ini.sample` to `config.ini` and edit your settings
 - All CLI arguments can override config values
