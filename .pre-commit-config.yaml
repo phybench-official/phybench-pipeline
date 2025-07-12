@@ -10,4 +10,3 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [types-tabulate]
-        args: [--ignore-missing-imports, --no-strict-optional, --allow-untyped-calls, --allow-untyped-defs, --allow-any-generics, --no-warn-no-return, --disable-error-code=annotation-unchecked]
