@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from latex2sympy2_extended import latex2sympy
@@ -540,11 +541,14 @@ def second_pre_process(s: str) -> str:
     return s
 
 
+@dataclass(frozen=True)
 class MyConfig(ConversionConfig):
+    # Override parent class defaults to maintain original behavior
     interpret_as_mixed_fractions: bool = False
     interpret_simple_eq_as_assignment: bool = False
     interpret_contains_as_eq: bool = True
-    lowercase_symbols: bool = False
+    lowercase_symbols: bool = False  # Critical: prevent variable lowercasing
+
     """
     Args:
         interpret_as_mixed_fractions (bool): Whether to interpert 2 \\frac{1}{2} as 2/2 or 2 + 1/2
@@ -554,6 +558,7 @@ class MyConfig(ConversionConfig):
     """
 
 
+@dataclass(frozen=True)
 class MyNormalization(NormalizationConfig):
     """Configuration for latex normalization.
 
@@ -566,10 +571,11 @@ class MyNormalization(NormalizationConfig):
     - equations: Handle equation splitting and approximations (deprecated)
     """
 
+    # Override parent class defaults to maintain original behavior
     basic_latex: bool = True
     units: bool = False
-    malformed_operators: bool = True
-    nits: bool = True
+    malformed_operators: bool = True  # Was True in old version, False in parent
+    nits: bool = True  # Was True in old version, False in parent
     boxed = "all"
     equations: bool = False
 
