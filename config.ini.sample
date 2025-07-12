@@ -17,11 +17,14 @@ openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, 
 [api_caller.paths]
 # Directory containing input JSON files
 input_folder = data/ground_truth
-# Input filename (without path)
+# Input filename (without path, with or without .json extension)
 input_file = test.json
 # Directory to save output JSON files (individual model solution files)
 output_dir = data/model_solutions
-# Output filename template (use [input_file] and [model] placeholders)
+# Output filename template
+# Available placeholders:
+#   [input_file] - Input filename without extension (e.g., "test")
+#   [model]      - Model name with special chars sanitized (e.g., "gpt-4o")
 output_file = [input_file]_[model]
 
 [api_caller.execution]
@@ -39,12 +42,29 @@ max_task_queue_size = 100
 
 ; -------------------------------- evaluation -------------------------------- ;
 [evaluation.paths]
-# Path to the input JSON file with ground truth (contains problems with correct answers)
-gt_file = data/ground_truth/test.json
-# Model answers file path (contains generated solutions from models with fields: id, model, solution, answer, time_taken, etc.)
-model_answers_file = data/model_solutions/gpt-4o.json
-# Path to save output JSON file (the final evaluation results)
-output_file = data/evaluation_results/test.json
+# Directory containing ground truth files
+gt_folder = data/ground_truth
+# Ground truth filename (without path, with or without .json extension)
+# Available placeholders:
+#   [api_caller_input_file]  - Input filename from API caller (e.g., "test")
+#   [api_caller_model]       - Model name from API caller (e.g., "gpt-4o")
+#   [api_caller_output_file] - Output filename from API caller (e.g., "test_gpt-4o")
+gt_file = [api_caller_input_file]
+# Directory containing model solution files
+model_answers_folder = data/model_solutions
+# Model answers filename (without path, with or without .json extension)
+# Available placeholders: Same as gt_file above
+model_answers_file = [api_caller_output_file]
+# Directory to save evaluation results
+output_dir = data/evaluation_results
+# Output filename template
+# Available placeholders:
+#   [gt_file]                - Ground truth filename without extension
+#   [model_answers_file]     - Model answers filename without extension
+#   [api_caller_input_file]  - Input filename from API caller
+#   [api_caller_model]       - Model name from API caller
+#   [api_caller_output_file] - Output filename from API caller
+output_file = [api_caller_input_file]
 # Log file path
 log_file = logs/evaluation.log
 

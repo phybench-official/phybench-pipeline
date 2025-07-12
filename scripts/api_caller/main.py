@@ -41,7 +41,7 @@ def get_output_file(
     Args:
         target_dir_path: The directory where the output file will be saved.
         model_name: The name of the model, used to create the filename.
-        input_filename: The input filename (without extension).
+        input_filename: The input filename (with or without .json extension).
         output_template: The output filename template with [input_file] and [model] placeholders.
 
     Returns:
@@ -49,8 +49,9 @@ def get_output_file(
     """
     sanitized_model_name = model_name.replace("/", "_").replace(":", "_")
 
-    # Extract filename without extension from input_filename
-    input_base = Path(input_filename).stem
+    # Extract filename without extension from input_filename (handle both with/without .json)
+    input_path = Path(input_filename)
+    input_base = input_path.stem
 
     # Replace placeholders in the template
     output_filename = output_template.replace("[input_file]", input_base).replace(

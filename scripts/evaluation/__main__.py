@@ -5,8 +5,15 @@ Usage: python -m scripts.evaluation [arguments]
 """
 
 import sys
+from pathlib import Path
 
-from .main import load_evaluation_config, main, main_cli
+from .main import (
+    expand_template_placeholders,
+    get_evaluation_output_file,
+    load_evaluation_config,
+    main,
+    main_cli,
+)
 
 
 def main_entry() -> None:
@@ -18,17 +25,17 @@ def main_entry() -> None:
             config = load_evaluation_config()
             print("Running with config parameters...")
 
-            if not config.gt_file:
+            if not config.gt_folder or not config.gt_file:
                 raise ValueError(
-                    "Ground truth file (gt_file) must be specified in config.ini"
+                    "Ground truth folder and file must be specified in config.ini"
                 )
-            if not config.model_answers_file:
+            if not config.model_answers_folder or not config.model_answers_file:
                 raise ValueError(
-                    "Model answers file (model_answers_file) must be specified in config.ini"
+                    "Model answers folder and file must be specified in config.ini"
                 )
-            if not config.output_file:
+            if not config.output_dir or not config.output_file:
                 raise ValueError(
-                    "Output directory (output_file) must be specified in config.ini"
+                    "Output directory and file template must be specified in config.ini"
                 )
             if config.initial_score is None:
                 raise ValueError(
@@ -39,19 +46,52 @@ def main_entry() -> None:
                     "Scoring slope (scoring_slope) must be specified in config.ini"
                 )
 
+            # Build file paths with template expansion (same logic as parse_args)
+            gt_file_expanded = expand_template_placeholders(
+                config.gt_file,
+                config.api_caller_model or "",
+                config.api_caller_input_file or "",
+                config.api_caller_output_file or "",
+            )
+            gt_file_path = str(Path(config.gt_folder) / gt_file_expanded)
+
+            model_answers_file_expanded = expand_template_placeholders(
+                config.model_answers_file,
+                config.api_caller_model or "",
+                config.api_caller_input_file or "",
+                config.api_caller_output_file or "",
+            )
+            model_answers_file_path = str(
+                Path(config.model_answers_folder) / model_answers_file_expanded
+            )
+
+            # Generate output file path using template
+            output_dir_path = Path(config.output_dir)
+            output_dir_path.mkdir(parents=True, exist_ok=True)
+
+            output_file_path = get_evaluation_output_file(
+                output_dir_path,
+                gt_file_expanded,
+                model_answers_file_expanded,
+                config.output_file,
+                api_caller_model=config.api_caller_model or "",
+                api_caller_input_file=config.api_caller_input_file or "",
+                api_caller_output_file=config.api_caller_output_file or "",
+            )
+
             scoring_params = [config.initial_score, config.scoring_slope]
             log_file = config.log_file or "evaluation_logs.txt"
 
-            print(f"  - Ground truth file: {config.gt_file}")
-            print(f"  - Model answers file: {config.model_answers_file}")
-            print(f"  - Output directory: {config.output_file}")
+            print(f"  - Ground truth file: {gt_file_path}")
+            print(f"  - Model answers file: {model_answers_file_path}")
+            print(f"  - Output file: {output_file_path}")
             print(f"  - Scoring parameters: {scoring_params}")
             print(f"  - Log file: {log_file}")
 
             main(
-                config.gt_file,
-                config.model_answers_file,
-                config.output_file,
+                gt_file_path,
+                model_answers_file_path,
+                str(output_file_path),
                 scoring_params,
                 log_file,
             )

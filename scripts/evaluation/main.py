@@ -41,6 +41,112 @@ def initialize_logging(log_file_path: str) -> None:
         f.write("")
 
 
+def get_evaluation_output_file(
+    output_dir_path: Path,
+    gt_filename: str,
+    model_answers_filename: str,
+    output_template: str,
+    api_caller_model: str = "",
+    api_caller_input_file: str = "",
+    api_caller_output_file: str = "",
+) -> Path:
+    """
+    Generates the full path for the evaluation output JSON file using a template.
+
+    Args:
+        output_dir_path: The directory where the output file will be saved.
+        gt_filename: The ground truth filename (with or without .json extension).
+        model_answers_filename: The model answers filename (with or without .json extension).
+        output_template: The output filename template with various placeholders.
+        api_caller_model: The model name from API caller for cross-module placeholders.
+        api_caller_input_file: The input filename from API caller for cross-module placeholders.
+        api_caller_output_file: The output file template from API caller for cross-module placeholders.
+
+    Returns:
+        The absolute path to the output JSON file.
+    """
+    # Extract filename without extension (handle both with/without .json)
+    gt_base = Path(gt_filename).stem
+    model_answers_base = Path(model_answers_filename).stem
+
+    # Handle cross-module placeholders
+    api_caller_model_sanitized = api_caller_model.replace("/", "_").replace(":", "_")
+    api_caller_input_base = (
+        Path(api_caller_input_file).stem if api_caller_input_file else ""
+    )
+
+    # Compute the API caller output filename
+    api_caller_output_computed = ""
+    if api_caller_output_file and api_caller_model and api_caller_input_file:
+        api_caller_output_computed = api_caller_output_file.replace(
+            "[input_file]", api_caller_input_base
+        ).replace("[model]", api_caller_model_sanitized)
+        # Remove .json extension for base name
+        api_caller_output_computed = Path(api_caller_output_computed).stem
+
+    # Replace placeholders in the template
+    output_filename = (
+        output_template.replace("[gt_file]", gt_base)
+        .replace("[model_answers_file]", model_answers_base)
+        .replace("[api_caller_model]", api_caller_model_sanitized)
+        .replace("[api_caller_input_file]", api_caller_input_base)
+        .replace("[api_caller_output_file]", api_caller_output_computed)
+    )
+
+    # Ensure .json extension
+    if not output_filename.endswith(".json"):
+        output_filename += ".json"
+
+    return output_dir_path / output_filename
+
+
+def expand_template_placeholders(
+    template: str,
+    api_caller_model: str,
+    api_caller_input_file: str,
+    api_caller_output_file: str = "",
+) -> str:
+    """
+    Expands cross-module template placeholders in a string.
+
+    Args:
+        template: The template string with placeholders.
+        api_caller_model: The model name from API caller.
+        api_caller_input_file: The input filename from API caller.
+        api_caller_output_file: The output file template from API caller.
+
+    Returns:
+        The template with placeholders replaced.
+    """
+    # Sanitize model name
+    api_caller_model_sanitized = api_caller_model.replace("/", "_").replace(":", "_")
+    api_caller_input_base = (
+        Path(api_caller_input_file).stem if api_caller_input_file else ""
+    )
+
+    # Compute the API caller output filename
+    api_caller_output_computed = ""
+    if api_caller_output_file and api_caller_model and api_caller_input_file:
+        api_caller_output_computed = api_caller_output_file.replace(
+            "[input_file]", api_caller_input_base
+        ).replace("[model]", api_caller_model_sanitized)
+        # Remove .json extension for base name
+        api_caller_output_computed = Path(api_caller_output_computed).stem
+
+    # Replace cross-module placeholders
+    expanded = (
+        template.replace("[api_caller_model]", api_caller_model_sanitized)
+        .replace("[api_caller_input_file]", api_caller_input_base)
+        .replace("[api_caller_output_file]", api_caller_output_computed)
+    )
+
+    # Ensure .json extension if needed
+    if template != expanded and not expanded.endswith(".json"):
+        expanded += ".json"
+
+    return expanded
+
+
 def process_single_problem(data: dict[str, Any]) -> list[Any]:
     model_name = data["model"]
     ai_ans = data["model_answer"]
@@ -219,20 +325,44 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate model answers against ground truth using EED scoring"
     )
+
+    # Build default file paths from folders + filenames, with cross-module placeholder support
+    default_gt_path = None
+    if config.gt_folder and config.gt_file:
+        gt_file_expanded = expand_template_placeholders(
+            config.gt_file,
+            config.api_caller_model or "",
+            config.api_caller_input_file or "",
+            config.api_caller_output_file or "",
+        )
+        default_gt_path = str(Path(config.gt_folder) / gt_file_expanded)
+
+    default_model_answers_path = None
+    if config.model_answers_folder and config.model_answers_file:
+        model_answers_file_expanded = expand_template_placeholders(
+            config.model_answers_file,
+            config.api_caller_model or "",
+            config.api_caller_input_file or "",
+            config.api_caller_output_file or "",
+        )
+        default_model_answers_path = str(
+            Path(config.model_answers_folder) / model_answers_file_expanded
+        )
+
     parser.add_argument(
         "--gt-file",
-        default=config.gt_file,
+        default=default_gt_path,
         help="Path to ground truth JSON file (contains reference problems with correct answers)",
     )
     parser.add_argument(
         "--model-answers-file",
-        default=config.model_answers_file,
+        default=default_model_answers_path,
         help="Path to model answers JSON file (contains generated solutions from models)",
     )
     parser.add_argument(
         "--output-dir",
-        default=config.output_file,
-        help="Output file path (where the final grading results will be saved)",
+        default=config.output_dir,
+        help="Output directory (where the final grading results will be saved)",
     )
     parser.add_argument(
         "--initial-score",
@@ -274,18 +404,37 @@ def main_cli() -> None:
         )
         return
 
-    if not args.output_file:
+    if not args.output_dir:
         print(
-            "Error: No output directory specified. Use --output-dir or set output_file in config."
+            "Error: No output directory specified. Use --output-dir or set output_dir in config."
         )
         return
+
+    # Generate output file path using template
+    output_dir_path = Path(args.output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    gt_filename = Path(args.gt_file).name
+    model_answers_filename = Path(args.model_answers_file).name
+    output_template = config.output_file or "[gt_file]_[model_answers_file]_evaluation"
+
+    output_file = get_evaluation_output_file(
+        output_dir_path,
+        gt_filename,
+        model_answers_filename,
+        output_template,
+        api_caller_model=config.api_caller_model or "",
+        api_caller_input_file=config.api_caller_input_file or "",
+        api_caller_output_file=config.api_caller_output_file or "",
+    )
 
     scoring_params = [args.initial_score, args.scoring_slope]
 
     print("🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
     print(f"  - Model answers file: {args.model_answers_file}")
-    print(f"  - Output directory: {args.output_file}")
+    print(f"  - Output directory: {args.output_dir}")
+    print(f"  - Output file: {output_file}")
     print(f"  - Scoring parameters: {scoring_params}")
     print(
         f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}"
@@ -295,8 +444,12 @@ def main_cli() -> None:
     result_table = main(
         args.gt_file,
         args.model_answers_file,
-        args.output_file,
+        str(output_file),
         scoring_params,
         args.log_file,
     )
     print(result_table)
+
+
+if __name__ == "__main__":
+    main_cli()

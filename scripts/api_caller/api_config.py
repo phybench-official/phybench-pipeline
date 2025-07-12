@@ -25,6 +25,9 @@ Use standard LaTeX conventions rigorously."""
         self.input_file: str | None = None
         self.output_dir: str | None = None
         self.output_file: str | None = None
+
+        # Computed properties for cross-module access
+        self.computed_output_filename: str | None = None
         self.num_consumers: int | None = None
         self.chat_timeout: float | None = None
         self.repeat_count: int | None = None
