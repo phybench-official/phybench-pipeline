@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import json
-from typing import List, Dict, Any
-from latex_processor import *
-from expression_distance import *
+
+from expression_distance import master_convert, sympy_to_tree
+from latex_processor import *  # noqa: F403, F401
 
 # 读取 Excel 文件（默认读取第一个工作表）
 file_path = "./solutions/claude-sonnet-4-0514.json"
-with open(file_path, "r", encoding="utf-8") as file:
+with open(file_path, encoding="utf-8") as file:
     data = json.load(file)
 
 
@@ -18,14 +19,14 @@ def write_file(s: str) -> None:
 with open("validator_logs.txt", "w") as f:
     f.write("")
 
-formulas: List[str] = []
+formulas: list[str] = []
 for i in data:
     formulas.append(i["answer"])
 # print(formulas)
 cnt = 0
 
 formulas = formulas[0:1000]
-opt: List[Dict[str, str]] = []
+opt: list[dict[str, str]] = []
 for formula_a in formulas:
     formula = formula_a
     cnt += 1
@@ -34,7 +35,7 @@ for formula_a in formulas:
         expre = master_convert(formula)
         tree = sympy_to_tree(expre)
         print(f"Expression{cnt}/{len(formulas)}Validated")
-    except:
+    except Exception:
         print(f"Wrong formatted Expression{formula}")
         write_file(str(formula))
         write_file("\n")

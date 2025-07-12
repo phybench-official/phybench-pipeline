@@ -1,10 +1,13 @@
 # This file is used to pre-process input latex expressions
 # You only need a "master_convert()"
 from __future__ import annotations
-from typing import Tuple, Optional, List, Any
-from latex2sympy2_extended import latex2sympy  # type: ignore
-from sympy import simplify
+
 import re
+from typing import Any
+
+from latex2sympy2_extended import latex2sympy  # type: ignore
+from latex2sympy2_extended.latex2sympy2 import ConversionConfig  # type: ignore
+from latex2sympy2_extended.math_normalization import NormalizationConfig  # type: ignore
 
 
 def brackets_balanced(s: str) -> bool:
@@ -32,13 +35,9 @@ def remove_non_ascii(text: str) -> str:
     return text.encode("ascii", errors="ignore").decode()
 
 
-import re
-
-
-def extract_bracket_content(s: str, bracket_position: int) -> Tuple[Optional[str], int]:
+def extract_bracket_content(s: str, bracket_position: int) -> tuple[str | None, int]:
     start_idx = bracket_position
 
-    stack = []
     content = []
     escaped = False
     brace_start = start_idx + 1
@@ -79,14 +78,14 @@ def find_first_unescaped_brace(s: str) -> int:
     return -1
 
 
-def extract_command(s: str, brace_pos: int) -> Optional[str]:
+def extract_command(s: str, brace_pos: int) -> str | None:
     """extract the command name from a bracket"""
     i = brace_pos - 1
     parameter_mode = False
     while i >= 0:
         if not parameter_mode and s[i] in ("^", "_"):
             return s[i]
-        if not parameter_mode and not s[i] in (" ", "\t", "]", "["):
+        if not parameter_mode and s[i] not in (" ", "\t", "]", "["):
             break
         if s[i] == "]":
             parameter_mode = True
@@ -144,7 +143,6 @@ def remove_command(s: str, command: str, keep_inside: bool = False) -> str:
     # print(end_index,s[end_index])
     if end_index < len(s) and s[end_index] == "{":
         while end_index < len(s):
-
             if s[end_index] == "{":
                 level += 1
             elif s[end_index] == "}":
@@ -165,9 +163,6 @@ def remove_command(s: str, command: str, keep_inside: bool = False) -> str:
         return s1
     else:
         return remove_command(s1, command, keep_inside)
-
-
-import re
 
 
 def convert_latex_fractions(latex_str: str) -> str:
@@ -194,7 +189,7 @@ def convert_latex_fractions(latex_str: str) -> str:
     return re.sub(pattern, replacer, latex_str)
 
 
-def get_first_brace_command(s: str) -> Optional[str]:
+def get_first_brace_command(s: str) -> str | None:
     """Find the first brace"""
     brace_pos = find_first_unescaped_brace(s)
     if brace_pos == -1:
@@ -202,7 +197,7 @@ def get_first_brace_command(s: str) -> Optional[str]:
     return extract_command(s, brace_pos)
 
 
-def remove_overall_brace(s: str) -> Tuple[str, int]:
+def remove_overall_brace(s: str) -> tuple[str, int]:
     """
     Remove the overall {xxx} brace
     """
@@ -211,7 +206,6 @@ def remove_overall_brace(s: str) -> Tuple[str, int]:
         return s, 0
     command = get_first_brace_command(s)
     if not command:
-
         content, final = extract_bracket_content(s, pos)
         # print(s[final])
         if content is not None and (final == len(s) - 1 or "}" not in s[final + 1 :]):
@@ -220,7 +214,6 @@ def remove_overall_brace(s: str) -> Tuple[str, int]:
 
 
 def exp_frac(s: str) -> str:
-
     def exp_frac_single(s: str) -> str:
         position = s.find("^\\frac") + 1
         if position == 0:
@@ -250,7 +243,7 @@ def exp_frac(s: str) -> str:
     return s
 
 
-def find_all(s: str, sub_str: str, allow_overlap: bool = True) -> List[int]:
+def find_all(s: str, sub_str: str, allow_overlap: bool = True) -> list[int]:
     indexes = []
     start = 0
     step = 1 if allow_overlap else len(sub_str)
@@ -383,6 +376,7 @@ def extract_last_equal_content(s: str, strip_whitespace: bool = True) -> str:
             rfind_index = s.rfind(sign)
             if rfind_index != -1:
                 content = s[rfind_index + 1 :]
+                # FIXME: should this be s[rfind_index + len(sign) :] ?
     if strip_whitespace:
         return content.strip()
     return content
@@ -528,7 +522,6 @@ def second_pre_process(s: str) -> str:
     for command in kill_commands:
         s = remove_command(s, command, keep_inside=False)
     for command in remove_commands:
-
         s = remove_command(s, command, keep_inside=True)
 
     for content in remove_content:
@@ -547,8 +540,7 @@ def second_pre_process(s: str) -> str:
     return s
 
 
-class MyConfig:
-
+class MyConfig(ConversionConfig):
     interpret_as_mixed_fractions: bool = False
     interpret_simple_eq_as_assignment: bool = False
     interpret_contains_as_eq: bool = True
@@ -562,7 +554,7 @@ class MyConfig:
     """
 
 
-class MyNormalization:
+class MyNormalization(NormalizationConfig):
     """Configuration for latex normalization.
 
     Each field controls a group of related normalizations:
@@ -605,5 +597,9 @@ def master_convert(s: str) -> Any:
     # print(preprocessed_stage1)
     preprocessed_stage2 = second_pre_process(preprocessed_stage1)
 
-    Sym = latex2sympy(preprocessed_stage2, normalization_config=MyNormalization(), conversion_config=MyConfig())  # type: ignore
+    Sym = latex2sympy(
+        preprocessed_stage2,
+        normalization_config=MyNormalization(),
+        conversion_config=MyConfig(),
+    )  # type: ignore
     return Sym

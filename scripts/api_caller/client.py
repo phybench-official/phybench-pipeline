@@ -1,17 +1,18 @@
+import asyncio
 import json
 import time
-import asyncio
 from pathlib import Path
+from typing import Any
+
 from openai import AsyncOpenAI
-from openai.types.chat import ChatCompletion, ChatCompletionMessage
+from openai.types.chat import ChatCompletion
 from openai.types.completion_usage import CompletionUsage
 from tqdm import tqdm
-from typing import List, Dict, Any, Optional
 
-_NORMALIZED_OPENAI_O_MODELS: Optional[set[str]] = None
+_NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
 
 
-def initialize_globals_from_config(openai_o_model_keywords: List[str]) -> None:
+def initialize_globals_from_config(openai_o_model_keywords: list[str]) -> None:
     """Initializes global settings from configuration."""
     global _NORMALIZED_OPENAI_O_MODELS
 
@@ -25,7 +26,7 @@ def create_async_client(api_key: str, base_url: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
-def read_problems(filename: str) -> List[Dict[str, Any]]:
+def read_problems(filename: str) -> list[dict[str, Any]]:
     """
     Reads a JSON file containing physics problems.
     Each problem should contain at least "id" and "content" fields.
@@ -37,7 +38,7 @@ def read_problems(filename: str) -> List[Dict[str, Any]]:
         A list of dictionaries, where each dictionary represents a problem.
     """
     try:
-        with open(filename, "r", encoding="utf-8") as f:
+        with open(filename, encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found.")
@@ -66,7 +67,7 @@ def extract_boxed_answer(solution_text: str) -> str:
         return ""
     index = start_index + len(start_marker)
     brace_level = 1
-    content_chars: List[str] = []
+    content_chars: list[str] = []
 
     while index < len(solution_text) and brace_level > 0:
         char = solution_text[index]
@@ -85,7 +86,7 @@ def extract_boxed_answer(solution_text: str) -> str:
 file_lock = asyncio.Lock()
 
 
-async def write_solution(solution: Dict[str, Any], output_filename: str) -> bool:
+async def write_solution(solution: dict[str, Any], output_filename: str) -> bool:
     """
     Asynchronously writes a single solution to JSON file with backup/recovery mechanism.
 
@@ -103,7 +104,7 @@ async def write_solution(solution: Dict[str, Any], output_filename: str) -> bool
             try:
                 existing_solutions = []
                 if Path(output_filename).exists():
-                    with open(output_filename, "r", encoding="utf-8") as f:
+                    with open(output_filename, encoding="utf-8") as f:
                         existing_solutions = json.load(f)
 
                 existing_solutions.append(solution)
@@ -150,11 +151,11 @@ def _is_openai_o_model(model_name: str) -> bool:
 
 async def generate_solution_data(
     async_client_instance: AsyncOpenAI,
-    problem: Dict[str, Any],
+    problem: dict[str, Any],
     model: str,
-    repeat_idx: Optional[int],
-    timeout: Optional[float] = 1200.0,
-) -> Dict[str, Any]:
+    repeat_idx: int | None,
+    timeout: float | None = 1200.0,
+) -> dict[str, Any]:
     """
     Generates a solution for a given problem using the specified model with non-streaming API.
 
@@ -168,10 +169,10 @@ async def generate_solution_data(
     Returns:
         A dictionary containing the solution details, including any errors encountered.
     """
-    user_prompt_prefix = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer. 
-Your final answer must be enclosed strictly within a single \\boxed{} command. 
-The final answer must be a single, fully simplified, and directly parseable LaTeX expression. 
-Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression. 
+    user_prompt_prefix = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer.
+Your final answer must be enclosed strictly within a single \\boxed{} command.
+The final answer must be a single, fully simplified, and directly parseable LaTeX expression.
+Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
 Use standard LaTeX conventions rigorously."""
 
     question_text: str = problem.get("translatedContent", problem.get("content", ""))
@@ -210,7 +211,7 @@ Use standard LaTeX conventions rigorously."""
 
         time_taken = time.time() - start_time
 
-        usage: Optional[CompletionUsage] = response.usage
+        usage: CompletionUsage | None = response.usage
 
         result = {
             "id": problem.get("id", "N/A"),
@@ -251,13 +252,13 @@ Use standard LaTeX conventions rigorously."""
 
 async def process_problem(
     async_client_instance: AsyncOpenAI,
-    problem: Dict[str, Any],
+    problem: dict[str, Any],
     model: str,
     output_filename: str,
-    pbar: Optional[tqdm] = None,
-    repeat_idx: Optional[int] = None,
-    api_timeout: Optional[float] = 1200.0,
-) -> Dict[str, Any]:
+    pbar: tqdm | None = None,
+    repeat_idx: int | None = None,
+    api_timeout: float | None = 1200.0,
+) -> dict[str, Any]:
     """
     Processes a single problem, calls model to generate solution, and writes to file.
     Manages progress display (console or tqdm) and file writing.

@@ -1,13 +1,16 @@
 from __future__ import annotations
-import json
-import time
+
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from .expression_distance import EED
+import json
 import multiprocessing
+import time
+from pathlib import Path
+from typing import Any
+
 from tabulate import tabulate
-from .evaluation_config import load_evaluation_config, EvaluationConfig
+
+from .evaluation_config import EvaluationConfig, load_evaluation_config
+from .expression_distance import EED
 
 progress = 0
 
@@ -17,8 +20,9 @@ def write_log(s: str, file: str = "./logs.txt") -> None:
         f.write(s + "\n")
 
 
-processing_lis: List[Any] = []
-processed_list: List[Any] = []
+processing_lis: list[Any] = []
+processed_list: list[Any] = []
+
 
 def initialize_logging(log_file_path: str) -> None:
     """Initialize logging with configurable file path."""
@@ -30,7 +34,7 @@ def initialize_logging(log_file_path: str) -> None:
         f.write("")
 
 
-def process_single_problem(data: Dict[str, Any]) -> List[Any]:
+def process_single_problem(data: dict[str, Any]) -> list[Any]:
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
@@ -47,12 +51,20 @@ def process_single_problem(data: Dict[str, Any]) -> List[Any]:
     t1 = time.time()
 
     with open(log_file_path, "a", encoding="utf-8") as f:
-        f.write(f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1-t0:.2f}s\n")
+        f.write(
+            f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s\n"
+        )
 
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
 
-def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Optional[List[int]], log_file: str = "logging.txt") -> str:
+def main(
+    gt_file_dir: str,
+    gen_file_dir: str,
+    output_file: str,
+    parameters: list[int] | None,
+    log_file: str = "logging.txt",
+) -> str:
     if not parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
 
@@ -62,10 +74,10 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
     final_answer_f = gen_file_dir
     approved_problems_f = gt_file_dir
 
-    with open(final_answer_f, "r", encoding="utf-8") as f:
+    with open(final_answer_f, encoding="utf-8") as f:
         final_answer = json.load(f)
 
-    with open(approved_problems_f, "r", encoding="utf-8") as f:
+    with open(approved_problems_f, encoding="utf-8") as f:
         approved_problems = json.load(f)
 
     approved_problems_dict = {}
@@ -82,7 +94,7 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
     final_answer_dict = {}
     for data in final_answer:
         name = data["model"]
-        if not name in model_list:
+        if name not in model_list:
             model_list.append(name)
 
         final_answer_dict[(data["id"], data["model"])] = data
@@ -93,7 +105,6 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
         if answers["id"] == 108:
             continue
         for model in model_list:
-
             id_number = answers["id"]
             # print(id_number,model)
             query_answer = (id_number, model)
@@ -128,14 +139,13 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
         results = list(pool.map(process_single_problem, work_list))
 
     t1 = time.time()
-    print(f"Evaluation Finished, total time: {t1-t0:.2f}s")
+    print(f"Evaluation Finished, total time: {t1 - t0:.2f}s")
 
     # plot
     model_scores, model_nums = {}, {}
     for name in model_list:
         model_scores[name] = 0
         model_nums[name] = 0
-    num = len(approved_problems)
 
     dist_data = []
     for result in results:
@@ -163,7 +173,6 @@ def main(gt_file_dir: str, gen_file_dir: str, output_file: str, parameters: Opti
         # print(model,result[1],problem_id)
 
     for data in approved_problems:
-
         score_list = data["model_score"]
         if score_list:
             avg_score = sum(score_list) / len(score_list)
@@ -205,42 +214,38 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
     parser.add_argument(
         "--gt-file",
         default=config.gt_file,
-        help="Path to ground truth JSON file (contains reference problems with correct answers)"
+        help="Path to ground truth JSON file (contains reference problems with correct answers)",
     )
     parser.add_argument(
-        "--model-answers-file", 
+        "--model-answers-file",
         default=config.model_answers_file,
-        help="Path to model answers JSON file (contains generated solutions from models)"
+        help="Path to model answers JSON file (contains generated solutions from models)",
     )
     parser.add_argument(
         "--output-dir",
-        default=config.output_file, 
-        help="Output file path (where the final grading results will be saved)"
+        default=config.output_file,
+        help="Output file path (where the final grading results will be saved)",
     )
     parser.add_argument(
         "--initial-score",
         type=int,
         default=config.initial_score,
-        help="Base score assigned before distance penalty (higher = more lenient, range: 0-100)"
+        help="Base score assigned before distance penalty (higher = more lenient, range: 0-100)",
     )
     parser.add_argument(
         "--scoring-slope",
         type=int,
         default=config.scoring_slope,
-        help="Scaling factor for expression distance penalty (higher = steeper penalty curve)"
+        help="Scaling factor for expression distance penalty (higher = steeper penalty curve)",
     )
     parser.add_argument(
         "--num-processes",
         type=int,
         default=config.num_processes,
-        help="Number of processes to use (0 = auto-detect)"
+        help="Number of processes to use (0 = auto-detect)",
     )
-    parser.add_argument(
-        "--log-file",
-        default=config.log_file,
-        help="Log file path"
-    )
-    
+    parser.add_argument("--log-file", default=config.log_file, help="Log file path")
+
     return parser.parse_args()
 
 
@@ -248,28 +253,42 @@ def main_cli() -> None:
     """Command line interface entry point."""
     config = load_evaluation_config()
     args = parse_args(config)
-    
+
     if not args.gt_file:
-        print("Error: No ground truth file specified. Use --gt-file or set gt_file in config.")
+        print(
+            "Error: No ground truth file specified. Use --gt-file or set gt_file in config."
+        )
         return
-        
+
     if not args.model_answers_file:
-        print("Error: No model answers file specified. Use --model-answers-file or set model_answers_file in config.")
+        print(
+            "Error: No model answers file specified. Use --model-answers-file or set model_answers_file in config."
+        )
         return
-        
+
     if not args.output_file:
-        print("Error: No output directory specified. Use --output-dir or set output_file in config.")
+        print(
+            "Error: No output directory specified. Use --output-dir or set output_file in config."
+        )
         return
 
     scoring_params = [args.initial_score, args.scoring_slope]
-    
-    print(f"🎯 Starting evaluation process:")
+
+    print("🎯 Starting evaluation process:")
     print(f"  - Ground truth file: {args.gt_file}")
     print(f"  - Model answers file: {args.model_answers_file}")
     print(f"  - Output directory: {args.output_file}")
     print(f"  - Scoring parameters: {scoring_params}")
-    print(f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}")
+    print(
+        f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}"
+    )
     print(f"  - Log file: {args.log_file}")
-    
-    result_table = main(args.gt_file, args.model_answers_file, args.output_file, scoring_params, args.log_file)
+
+    result_table = main(
+        args.gt_file,
+        args.model_answers_file,
+        args.output_file,
+        scoring_params,
+        args.log_file,
+    )
     print(result_table)

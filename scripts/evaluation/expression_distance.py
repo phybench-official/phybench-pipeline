@@ -1,29 +1,35 @@
 from __future__ import annotations
-from typing import Dict, List, Tuple, Any, Optional, Union
+
 import threading
+from typing import Any
+
+import sympy
 from sympy import (
-    Symbol,
-    Integer,
-    Float,
-    Rational,
     Add,
+    Float,
+    Function,
+    Integer,
     Mul,
     Pow,
-    Function,
-    simplify,
+    Rational,
+    Symbol,
     expand,
     posify,
-    pi as Pi,
+    simplify,
+)
+from sympy import (
     E as EulerNumber,
+)
+from sympy import (
     oo as Infinity,
 )
-import sympy
+from sympy import (
+    pi as Pi,
+)
 
 NegativeInfinity = -sympy.oo
-import threading
-import time
-from .tree_distance import ext_distance
-from .latex_processor import master_convert
+from .latex_processor import master_convert  # noqa: E402
+from .tree_distance import ext_distance  # noqa: E402
 
 """
 Guide:
@@ -43,11 +49,13 @@ Operators: basic binary operations including addition, multiplication, and expon
 """
 
 # The costs can be modified if you think their values are different
-insert_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-delete_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-update_cost: Dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+insert_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+delete_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+update_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
 
-change_type_cost: int = 1  # the cost of an update between different types, can be set to higher
+change_type_cost: int = (
+    1  # the cost of an update between different types, can be set to higher
+)
 
 bar_size = 5  # the minimum size of triggering cluster discount
 discount_slope = 0.6
@@ -57,7 +65,6 @@ equals_time_limit = 10
 
 
 def update_func(x: TreeNode, y: TreeNode) -> float:
-
     if x.label == y.label:
         return 0
 
@@ -108,7 +115,6 @@ def calc_tree_size(node: TreeNode) -> int:
     total = insert_cost[node.label.split("_")[0]]
 
     if node.children and node.subtree_size != 0:
-
         return node.subtree_size
 
     for child in node.children:
@@ -124,8 +130,7 @@ Scoring function from relative distance
 """
 
 
-def score_calc(tree_dist: float, tree_size: int, parameters: List[int]) -> float:
-
+def score_calc(tree_dist: float, tree_size: int, parameters: list[int]) -> float:
     if tree_dist == 0.0:
         return 100
     return max(0, parameters[0] - parameters[1] * tree_dist / tree_size)
@@ -137,30 +142,35 @@ class TimeoutError(Exception):
 
 def with_timeout(timeout_seconds):
     """Windows-compatible timeout decorator using threading"""
+
     def decorator(func):
         def wrapper(*args, **kwargs):
-            result: List[Any] = []
-            exception: List[Exception] = []
-            
+            result: list[Any] = []
+            exception: list[Exception] = []
+
             def target():
                 try:
                     result.append(func(*args, **kwargs))
                 except Exception as e:
                     exception.append(e)
-            
+
             thread = threading.Thread(target=target)
             thread.daemon = True
             thread.start()
             thread.join(timeout_seconds)
-            
+
             if thread.is_alive():
-                raise TimeoutError(f"Function timed out after {timeout_seconds} seconds")
-            
+                raise TimeoutError(
+                    f"Function timed out after {timeout_seconds} seconds"
+                )
+
             if exception:
                 raise exception[0]
-            
+
             return result[0] if result else None
+
         return wrapper
+
     return decorator
 
 
@@ -168,6 +178,7 @@ def simplify_with_timeout(expr: Any) -> Any:
     @with_timeout(30)
     def _simplify(expr):
         return simplify(expr)
+
     return _simplify(expr)
 
 
@@ -183,6 +194,7 @@ def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
     @with_timeout(10)
     def _equals(expr1, expr2):
         return expr1.equals(expr2)
+
     return _equals(expr1, expr2)
 
 
@@ -220,13 +232,18 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         >>> print(tree)
     """
     # Symbols and constants
-    if isinstance(expr, (Integer, Float, Rational)) or expr in (Pi, EulerNumber, Infinity, NegativeInfinity):
+    if isinstance(expr, Integer | Float | Rational) or expr in (
+        Pi,
+        EulerNumber,
+        Infinity,
+        NegativeInfinity,
+    ):
         return TreeNode(label="number_" + str(expr), children=[])
     elif isinstance(expr, Symbol):
         return TreeNode(label="symbol_" + str(expr), children=[])
 
     # Binary operators
-    elif isinstance(expr, (Add, Mul, Pow)):
+    elif isinstance(expr, Add | Mul | Pow):
         op_name = type(expr).__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
         return TreeNode(label="operator_" + op_name, children=children)
@@ -244,13 +261,18 @@ def sympy_to_tree(expr: Any) -> TreeNode:
 
 
 class TreeNode:
-    def __init__(self, label: str, children: Optional[List[TreeNode]] = None, node_type: str = "other") -> None:
+    def __init__(
+        self,
+        label: str,
+        children: list[TreeNode] | None = None,
+        node_type: str = "other",
+    ) -> None:
         self.label = label
         self.children = children if children is not None else []
         self.node_type = node_type
         self.subtree_size = 0
 
-    def get_children(self) -> List[TreeNode]:
+    def get_children(self) -> list[TreeNode]:
         return self.children
 
     def __str__(self) -> str:
@@ -288,8 +310,8 @@ def EED(
     answer_latex: str,
     test_latex: str,
     debug_mode: bool = False,
-    scoring_parameters: Optional[List[int]] = None,
-) -> Tuple[float, float, int, float]:
+    scoring_parameters: list[int] | None = None,
+) -> tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
     This function evaluates the equivalence of two mathematical expressions represented
@@ -341,19 +363,17 @@ def EED(
         return 0, -1, -1, -1
 
     try:
-
         answer_exp = master_convert(answer_latex)
         test_exp = master_convert(test_latex)
-    except:
-        print(f"Failed to convert input latex to sympy expression, please check it")
+    except Exception as e:
+        print("Failed to convert input latex to sympy expression, please check it")
         if debug_mode:
             raise LaTeXError(
                 f"Fail to convert latex.\n GT:{answer_latex}\n GEN:{test_latex}"
-            )
+            ) from e
         return 0, -1, -1, -1
 
     try:
-
         answer_exp, rep1 = posify(answer_exp)
         answer_exp = time_simplify(answer_exp)
 
@@ -372,24 +392,25 @@ def EED(
             return 100, 0.0, 0, 0
 
     except Exception as e:
-        print(f"Something happened during simplification, returning zero: {type(e).__name__}: {e}")
+        print(
+            f"Something happened during simplification, returning zero: {type(e).__name__}: {e}"
+        )
         if debug_mode:
             raise SymPyError(
                 f"Failed to simplify the sympy expression. Error: {e}"
-            )
+            ) from e
         return 0, -1, -1, -1
 
     try:
         tree_answer = sympy_to_tree(answer_exp)
         tree_test = sympy_to_tree(test_exp)
 
-    except:
-
+    except Exception as e:
         print("Failed to build expression tree, returning zero")
         if debug_mode:
             raise SymPyError(
                 f"Failed to build the sympy expression tree.\n GT:{answer_exp}\n GEN:{test_exp}"
-            )
+            ) from e
         return 0, -1, -1, -1
 
     distance = ext_distance(
@@ -413,12 +434,12 @@ def EED(
             remove_cost=remove_tree_func,
             update_cost=update_func,
         )
-    except:
+    except Exception as e:
         print("Failed to calculate distance")
         if debug_mode:
             raise DistError(
                 f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"
-            )
+            ) from e
         return 0, -1, calc_tree_size(tree_answer), -1
     tree_size = calc_tree_size(tree_answer)
     distance_number = distance

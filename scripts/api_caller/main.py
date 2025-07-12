@@ -1,13 +1,14 @@
-import sys
+import argparse
+import asyncio
 import json
 import queue
+import sys
 import threading
 import time
-import asyncio
-import argparse
 from pathlib import Path
+from typing import Any
+
 from tqdm import tqdm
-from typing import List, Dict, Any, Optional, Callable, Coroutine
 
 current_dir = Path(__file__).resolve().parent
 root_dir = current_dir.parent.parent
@@ -16,19 +17,19 @@ if str(current_dir) not in sys.path:
 if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
-from api_config import load_api_config, ApiConfig
-from client import (
-    read_problems,
-    generate_solution_data,
+from api_config import ApiConfig, load_api_config  # noqa: E402
+from client import (  # noqa: E402
     create_async_client,
+    generate_solution_data,
     initialize_globals_from_config,
+    read_problems,
 )
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI  # noqa: E402
 
-APP_CONFIG: Optional[ApiConfig] = None
+APP_CONFIG: ApiConfig | None = None
 
-task_queue: "queue.Queue[Optional[Dict[str, Any]]]"
-result_queue: "queue.Queue[Optional[Dict[str, Any]]]"
+task_queue: "queue.Queue[dict[str, Any] | None]"
+result_queue: "queue.Queue[dict[str, Any] | None]"
 
 
 def get_output_file(target_dir_path: Path, model_name: str) -> Path:
@@ -46,7 +47,7 @@ def get_output_file(target_dir_path: Path, model_name: str) -> Path:
     return target_dir_path / f"{sanitized_model_name}.json"
 
 
-def is_error_solution(solution: Dict[str, Any]) -> bool:
+def is_error_solution(solution: dict[str, Any]) -> bool:
     """
     Checks if the provided solution dictionary indicates an error during generation.
 
@@ -56,7 +57,7 @@ def is_error_solution(solution: Dict[str, Any]) -> bool:
     Returns:
         True if the solution contains an error message, False otherwise.
     """
-    sol_text: Optional[Any] = solution.get("solution")
+    sol_text: Any | None = solution.get("solution")
 
     if isinstance(sol_text, str) and sol_text.startswith("Error"):
         return True
@@ -71,7 +72,7 @@ def is_error_solution(solution: Dict[str, Any]) -> bool:
 
 
 def producer(
-    problems: List[Dict[str, Any]],
+    problems: list[dict[str, Any]],
     model: str,
     repeat_count: int,
     output_file: Path,
@@ -116,7 +117,7 @@ def producer(
             }
             tasks_to_add.append(task)
 
-    print(f"📊 Task Summary:")
+    print("📊 Task Summary:")
     print(f"  - Total possible tasks: {total_possible_tasks}")
     print(f"  - Already completed: {skipped_count}")
     print(f"  - Tasks to process: {len(tasks_to_add)}")
@@ -220,7 +221,7 @@ def run_consumer_loop(
         print(f"Consumer loop error: {e}")
 
 
-def sync_write_solutions(solutions: List[Dict[str, Any]], output_file: Path) -> None:
+def sync_write_solutions(solutions: list[dict[str, Any]], output_file: Path) -> None:
     """
     Synchronously writes a list of solution dictionaries to a JSON file with backup/recovery mechanism.
 
@@ -278,17 +279,17 @@ def result_writer(
         batch_size: Number of solutions to buffer in memory (currently not directly tied to write frequency).
         pbar_desc: Description for the tqdm progress bar.
     """
-    existing_solutions: List[Dict[str, Any]] = []
+    existing_solutions: list[dict[str, Any]] = []
     if output_file.exists():
         try:
-            with open(output_file, "r", encoding="utf-8") as f:
+            with open(output_file, encoding="utf-8") as f:
                 existing_solutions = json.load(f)
         except Exception as e:
             print(f"Warning: Could not load existing solutions: {e}")
 
-    all_solutions_for_file: List[Dict[str, Any]] = existing_solutions
+    all_solutions_for_file: list[dict[str, Any]] = existing_solutions
 
-    current_run_buffer: List[Dict[str, Any]] = []
+    current_run_buffer: list[dict[str, Any]] = []
 
     processed_count = 0
     success_count = 0
@@ -339,7 +340,7 @@ def result_writer(
     print(f"\n📝 Writing {len(all_solutions_for_file)} solutions to {output_file}...")
     sync_write_solutions(all_solutions_for_file, output_file)
 
-    print(f"\n📊 Final Statistics:")
+    print("\n📊 Final Statistics:")
     print(f"  - Processed: {processed_count}")
     print(f"  - Successful: {success_count}")
     print(f"  - Errors: {error_count}")
@@ -369,9 +370,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
         default=config.output_file,
         help="Directory to store output files (individual model solution files)",
     )
-    parser.add_argument(
-        "--model", default=config.model, help="Model name to use"
-    )
+    parser.add_argument("--model", default=config.model, help="Model name to use")
     parser.add_argument(
         "--repeat-count",
         type=int,
@@ -388,7 +387,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_existing_solutions(output_file: Path) -> Dict[str, set]:
+def check_existing_solutions(output_file: Path) -> dict[str, set]:
     """
     Checks existing solutions in the output file and returns a dictionary
     mapping model names to sets of completed task keys.
@@ -405,7 +404,7 @@ def check_existing_solutions(output_file: Path) -> Dict[str, set]:
         return completed_tasks
 
     try:
-        with open(output_file, "r", encoding="utf-8") as f:
+        with open(output_file, encoding="utf-8") as f:
             existing_solutions = json.load(f)
 
         for solution in existing_solutions:
@@ -443,7 +442,7 @@ async def validate_model(
     try:
         client = create_async_client(api_key, base_url)
         try:
-            response = await client.chat.completions.create(
+            await client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": "Hi"}],
                 max_tokens=1,
@@ -512,7 +511,7 @@ def main() -> None:
 
     total_tasks = len(problems) * args.repeat_count
 
-    print(f"🚀 Starting parallel processing:")
+    print("🚀 Starting parallel processing:")
     print(f"  - Model: {args.model}")
     print(f"  - Problems: {len(problems)}")
     print(f"  - Repeat count: {args.repeat_count}")
@@ -526,7 +525,7 @@ def main() -> None:
     )
 
     consumer_threads = []
-    for i in range(args.num_consumers):
+    for _ in range(args.num_consumers):
         thread = threading.Thread(
             target=run_consumer_loop,
             args=(

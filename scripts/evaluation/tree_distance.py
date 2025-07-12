@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # Original Authors: Tim Henderson and Steve Johnson
 # Email: tim.tadh@gmail.com, steve@steveasleep.com
 # For licensing see the LICENSE file in the top level directory.
@@ -7,19 +6,21 @@
 # This is a modified version of zss package.
 
 from __future__ import annotations
+
 import collections
-from typing import List, Callable, Any, Optional, Dict
-from numpy import zeros, ones
+from collections.abc import Callable
+from typing import Any
+
+from numpy import ones, zeros
 
 
-class Node(object):
-
-    def __init__(self, label: str, children: Optional[List[Node]] = None) -> None:
+class Node:
+    def __init__(self, label: str, children: list[Node] | None = None) -> None:
         self.label = label
-        self.children = children or list()
+        self.children = children or []
 
     @staticmethod
-    def get_children(node: Node) -> List[Node]:
+    def get_children(node: Node) -> list[Node]:
         return node.children
 
     @staticmethod
@@ -33,7 +34,7 @@ class Node(object):
             self.children.append(node)
         return self
 
-    def get(self, label: str) -> Optional[Node]:
+    def get(self, label: str) -> Node | None:
         if self.label == label:
             return self
         for c in self.children:
@@ -43,19 +44,18 @@ class Node(object):
         return None
 
 
-class AnnotatedTree(object):
-
-    def __init__(self, root: Any, get_children: Callable[[Any], List[Any]]) -> None:
+class AnnotatedTree:
+    def __init__(self, root: Any, get_children: Callable[[Any], list[Any]]) -> None:
         self.get_children = get_children
 
         self.root = root
-        self.nodes: List[Any] = list()  # a post-order enumeration of the nodes in the tree
-        self.ids: List[int] = list()  # a matching list of ids
-        self.lmds: List[int] = list()  # left most descendents of each nodes
-        self.keyroots: List[int] = []  # the keyroots in the original paper
+        self.nodes: list[Any] = []  # a post-order enumeration of the nodes in the tree
+        self.ids: list[int] = []  # a matching list of ids
+        self.lmds: list[int] = []  # left most descendents of each nodes
+        self.keyroots: list[int] = []  # the keyroots in the original paper
 
-        stack = list()
-        pstack = list()
+        stack = []
+        pstack = []
         stack.append((root, collections.deque()))
         j = 0
         while len(stack) > 0:
@@ -67,8 +67,8 @@ class AnnotatedTree(object):
                 stack.append((c, a))
             pstack.append(((n, nid), anc))
             j += 1
-        lmds = dict()
-        keyroots = dict()
+        lmds = {}
+        keyroots = {}
         i = 0
         while len(pstack) > 0:
             (n, nid), anc = pstack.pop()
@@ -95,7 +95,7 @@ class AnnotatedTree(object):
 def ext_distance(
     A: Any,
     B: Any,
-    get_children: Callable[[Any], List[Any]],
+    get_children: Callable[[Any], list[Any]],
     single_insert_cost: Callable[[Any], float],
     insert_cost: Callable[[Any], float],
     single_remove_cost: Callable[[Any], float],
@@ -120,7 +120,6 @@ def ext_distance(
     size_b = len(tree_B.nodes)
     treedists = zeros((size_a, size_b), float)
     fd = 1000 * ones((size_a + 1, size_b + 1), float)
-    operations = [[[] for _ in range(size_b)] for _ in range(size_a)]
 
     def treedist(x: int, y: int) -> None:
         Al = tree_A.lmds
@@ -129,7 +128,6 @@ def ext_distance(
         Bn = tree_B.nodes
 
         m = size_a
-        n = size_b
 
         fd[Al[x]][Bl[y]] = 0
         for i in range(Al[x], x + 1):
@@ -143,7 +141,6 @@ def ext_distance(
 
         for i in range(Al[x], x + 1):
             for j in range(Bl[y], y + 1):
-
                 node1 = An[i]
                 node2 = Bn[j]
                 costs = [
