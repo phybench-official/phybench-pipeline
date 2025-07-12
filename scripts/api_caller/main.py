@@ -79,7 +79,7 @@ def is_error_solution(solution: dict[str, Any]) -> bool:
     Returns:
         True if the solution contains an error message, False otherwise.
     """
-    sol_text: Any | None = solution.get("solution")
+    sol_text: Any | None = solution.get("model_solution")
 
     if isinstance(sol_text, str) and sol_text.startswith("Error"):
         return True
@@ -200,7 +200,7 @@ async def consumer_task_processor(
                         error_solution = {
                             "id": problem.get("id", "N/A"),
                             "model": model,
-                            "solution": f"Error after {max_retries} retries: {str(e)}",
+                            "model_solution": f"Error after {max_retries} retries: {str(e)}",
                             "model_answer": "",
                             "timestamp": time.time(),
                             "time_taken": 0.0,

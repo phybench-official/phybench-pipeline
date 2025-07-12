@@ -184,8 +184,8 @@ Use standard LaTeX conventions rigorously."""
         return {
             "id": problem.get("id", "N/A"),
             "model": model,
-            "solution": "Error: No question content found",
-            "boxed_answer": "",
+            "model_solution": "Error: No question content found",
+            "model_answer": "",
             "timestamp": time.time(),
             "time_taken": 0.0,
             "repeat_index": repeat_idx,
@@ -211,7 +211,7 @@ Use standard LaTeX conventions rigorously."""
         )
 
         solution_content: str = response.choices[0].message.content or ""
-        boxed_answer = extract_boxed_answer(solution_content)
+        model_answer = extract_boxed_answer(solution_content)
 
         time_taken = time.time() - start_time
 
@@ -220,8 +220,8 @@ Use standard LaTeX conventions rigorously."""
         result = {
             "id": problem.get("id", "N/A"),
             "model": model,
-            "solution": solution_content,
-            "model_answer": boxed_answer,
+            "model_solution": solution_content,
+            "model_answer": model_answer,
             "timestamp": time.time(),
             "time_taken": time_taken,
             "repeat_index": repeat_idx,
@@ -245,8 +245,8 @@ Use standard LaTeX conventions rigorously."""
         return {
             "id": problem.get("id", "N/A"),
             "model": model,
-            "solution": error_msg,
-            "boxed_answer": "",
+            "model_solution": error_msg,
+            "model_answer": "",
             "timestamp": time.time(),
             "time_taken": time_taken,
             "repeat_index": repeat_idx,
@@ -296,7 +296,7 @@ async def process_problem(
 
     elapsed_time = solution_data.get("time_taken", 0.0)
 
-    solution_content = solution_data.get("solution")
+    solution_content = solution_data.get("model_solution")
     is_error = isinstance(solution_content, str) and solution_content.startswith(
         "Error"
     )
