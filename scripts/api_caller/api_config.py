@@ -21,7 +21,9 @@ The final answer must be a single, fully simplified, and directly parseable LaTe
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
 Use standard LaTeX conventions rigorously."""
 
+        self.input_folder: str | None = None
         self.input_file: str | None = None
+        self.output_dir: str | None = None
         self.output_file: str | None = None
         self.num_consumers: int | None = None
         self.chat_timeout: float | None = None
@@ -58,8 +60,10 @@ def load_api_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfi
             ]
 
     if "api_caller.paths" in parser:
+        config.input_folder = parser["api_caller.paths"].get("input_folder")
         config.input_file = parser["api_caller.paths"].get("input_file")
-        config.output_file = parser["api_caller.paths"].get("output_dir")
+        config.output_dir = parser["api_caller.paths"].get("output_dir")
+        config.output_file = parser["api_caller.paths"].get("output_file")
 
     if "api_caller.execution" in parser:
         config.num_consumers = parser["api_caller.execution"].getint("num_consumers")

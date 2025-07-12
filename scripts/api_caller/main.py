@@ -32,19 +32,36 @@ task_queue: "queue.Queue[dict[str, Any] | None]"
 result_queue: "queue.Queue[dict[str, Any] | None]"
 
 
-def get_output_file(target_dir_path: Path, model_name: str) -> Path:
+def get_output_file(
+    target_dir_path: Path, model_name: str, input_filename: str, output_template: str
+) -> Path:
     """
-    Generates the full path for the output JSON file for a given model.
+    Generates the full path for the output JSON file for a given model using a template.
 
     Args:
-        target_dir: The directory where the output file will be saved.
+        target_dir_path: The directory where the output file will be saved.
         model_name: The name of the model, used to create the filename.
+        input_filename: The input filename (without extension).
+        output_template: The output filename template with [input_file] and [model] placeholders.
 
     Returns:
         The absolute path to the output JSON file.
     """
     sanitized_model_name = model_name.replace("/", "_").replace(":", "_")
-    return target_dir_path / f"{sanitized_model_name}.json"
+
+    # Extract filename without extension from input_filename
+    input_base = Path(input_filename).stem
+
+    # Replace placeholders in the template
+    output_filename = output_template.replace("[input_file]", input_base).replace(
+        "[model]", sanitized_model_name
+    )
+
+    # Ensure .json extension
+    if not output_filename.endswith(".json"):
+        output_filename += ".json"
+
+    return target_dir_path / output_filename
 
 
 def is_error_solution(solution: dict[str, Any]) -> bool:
@@ -360,14 +377,20 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Parallel API caller for physics problems"
     )
+
+    # Build default input file path from folder + filename
+    default_input_path = None
+    if config.input_folder and config.input_file:
+        default_input_path = str(Path(config.input_folder) / config.input_file)
+
     parser.add_argument(
         "--input-file",
-        default=config.input_file,
+        default=default_input_path,
         help="Path to the input JSON file that contains problems (should contain fields: id, tag, content, solution, answer)",
     )
     parser.add_argument(
         "--output-dir",
-        default=config.output_file,
+        default=config.output_dir,
         help="Directory to store output files (individual model solution files)",
     )
     parser.add_argument("--model", default=config.model, help="Model name to use")
@@ -504,7 +527,13 @@ def main() -> None:
     output_dir_path = Path(args.output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
-    output_file = get_output_file(output_dir_path, args.model)
+    # Get input filename from the input file path
+    input_filename = Path(args.input_file).name
+    output_template = APP_CONFIG.output_file or "[input_file]_[model]"
+
+    output_file = get_output_file(
+        output_dir_path, args.model, input_filename, output_template
+    )
 
     task_queue = queue.Queue(maxsize=APP_CONFIG.max_task_queue_size or 0)
     result_queue = queue.Queue()

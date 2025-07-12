@@ -15,10 +15,14 @@ model = gpt-4o
 openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, o4-mini (high), o1, o1-preview-all
 
 [api_caller.paths]
-# Path to the input JSON file with problems (should contain fields: id, tag, content)
-input_file = data/ground_truth/test.json
+# Directory containing input JSON files
+input_folder = data/ground_truth
+# Input filename (without path)
+input_file = test.json
 # Directory to save output JSON files (individual model solution files)
 output_dir = data/model_solutions
+# Output filename template (use [input_file] and [model] placeholders)
+output_file = [input_file]_[model]
 
 [api_caller.execution]
 # Number of consumer threads/tasks
