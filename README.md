@@ -90,19 +90,19 @@ cp config.ini.sample config.ini
 ### Generate Model Solutions
 ```bash
 # Generate solutions using configured settings
-python -m scripts.api_caller
+python -m phybench.api_caller
 
 # Custom parameters
-python -m scripts.api_caller --model gpt-4o --input-file data/ground_truth/test.json --output-dir data/model_solutions --repeat-count 3
+python -m phybench.api_caller --model gpt-4o --input-file data/ground_truth/test.json --output-dir data/model_solutions --repeat-count 3
 ```
 
 ### Evaluate Solutions
 ```bash
 # Evaluate using configured settings
-python -m scripts.evaluation
+python -m phybench.evaluation
 
 # Custom evaluation with specific parameters
-python -m scripts.evaluation --gt-file data/ground_truth/test.json --model-answers-file data/model_solutions/gpt-4o.json --output-dir data/evaluation_results/custom_results.json --initial-score 60 --scoring-slope 100 --log-file logs/custom_evaluation.log --num-processes 4
+python -m phybench.evaluation --gt-file data/ground_truth/test.json --model-answers-file data/model_solutions/gpt-4o.json --output-dir data/evaluation_results/custom_results.json --initial-score 60 --scoring-slope 100 --log-file logs/custom_evaluation.log --num-processes 4
 ```
 
 ## Data Format

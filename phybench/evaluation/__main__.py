@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Entry point for the evaluation module when run as a package.
-Usage: python -m scripts.evaluation [arguments]
+Usage: python -m phybench.evaluation [arguments]
 """
 
 import sys
