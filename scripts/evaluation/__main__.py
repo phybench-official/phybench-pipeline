@@ -10,6 +10,7 @@ from pathlib import Path
 from .main import (
     expand_template_placeholders,
     get_evaluation_output_file,
+    get_file_path_with_normalization,
     load_evaluation_config,
     main,
     main_cli,
@@ -53,7 +54,9 @@ def main_entry() -> None:
                 config.api_caller_input_file or "",
                 config.api_caller_output_file or "",
             )
-            gt_file_path = str(Path(config.gt_folder) / gt_file_expanded)
+            gt_file_path = get_file_path_with_normalization(
+                config.gt_folder, gt_file_expanded
+            )
 
             model_answers_file_expanded = expand_template_placeholders(
                 config.model_answers_file,
@@ -61,8 +64,8 @@ def main_entry() -> None:
                 config.api_caller_input_file or "",
                 config.api_caller_output_file or "",
             )
-            model_answers_file_path = str(
-                Path(config.model_answers_folder) / model_answers_file_expanded
+            model_answers_file_path = get_file_path_with_normalization(
+                config.model_answers_folder, model_answers_file_expanded
             )
 
             # Generate output file path using template

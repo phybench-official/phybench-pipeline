@@ -42,7 +42,7 @@ def get_output_file(
         target_dir_path: The directory where the output file will be saved.
         model_name: The name of the model, used to create the filename.
         input_filename: The input filename (with or without .json extension).
-        output_template: The output filename template with [input_file] and [model] placeholders.
+        output_template: The output filename template with {input_file} and {model} placeholders.
 
     Returns:
         The absolute path to the output JSON file.
@@ -53,9 +53,13 @@ def get_output_file(
     input_path = Path(input_filename)
     input_base = input_path.stem
 
+    # If the file had no extension, use the original name
+    if input_path.suffix == "":
+        input_base = input_path.name
+
     # Replace placeholders in the template
-    output_filename = output_template.replace("[input_file]", input_base).replace(
-        "[model]", sanitized_model_name
+    output_filename = output_template.replace("{input_file}", input_base).replace(
+        "{model}", sanitized_model_name
     )
 
     # Ensure .json extension
@@ -380,19 +384,27 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     )
 
     # Build default input file path from folder + filename
-    default_input_path = None
-    if config.input_folder and config.input_file:
-        default_input_path = str(Path(config.input_folder) / config.input_file)
+    default_input_path = get_input_file_path(config.input_folder, config.input_file)
 
     parser.add_argument(
         "--input-file",
         default=default_input_path,
-        help="Path to the input JSON file that contains problems (should contain fields: id, tag, content, solution, answer)",
+        help="Path to the input JSON file that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
+    )
+    parser.add_argument(
+        "--input-folder",
+        default=config.input_folder,
+        help="Directory containing input JSON files",
     )
     parser.add_argument(
         "--output-dir",
         default=config.output_dir,
         help="Directory to store output files (individual model solution files)",
+    )
+    parser.add_argument(
+        "--output-file",
+        default=config.output_file,
+        help="Output filename template. Use {input_file} and {model} placeholders",
     )
     parser.add_argument("--model", default=config.model, help="Model name to use")
     parser.add_argument(
@@ -406,6 +418,18 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
         type=int,
         default=config.num_consumers,
         help="Number of consumer threads",
+    )
+    parser.add_argument(
+        "--chat-timeout",
+        type=float,
+        default=config.chat_timeout,
+        help="API call timeout in seconds",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=config.max_retries,
+        help="Maximum retries for failed API calls",
     )
 
     return parser.parse_args()
@@ -480,16 +504,58 @@ async def validate_model(
         return False
 
 
+def normalize_json_filename(filename: str) -> str:
+    """
+    Normalizes a filename to ensure it has a .json extension.
+
+    Args:
+        filename: The input filename (with or without .json extension)
+
+    Returns:
+        The filename with .json extension ensured
+    """
+    if not filename.endswith(".json"):
+        return f"{filename}.json"
+    return filename
+
+
+def get_input_file_path(input_folder: str | None, input_file: str | None) -> str | None:
+    """
+    Constructs the full input file path from folder and filename, normalizing the JSON extension.
+
+    Args:
+        input_folder: The directory containing input files
+        input_file: The input filename (with or without .json extension)
+
+    Returns:
+        The full path to the input file, or None if either argument is None
+    """
+    if not input_folder or not input_file:
+        return None
+
+    normalized_filename = normalize_json_filename(input_file)
+    return str(Path(input_folder) / normalized_filename)
+
+
 def main() -> None:
     global APP_CONFIG, task_queue, result_queue
 
     APP_CONFIG = load_api_config()
     args = parse_args(APP_CONFIG)
-    if not args.input_file:
+
+    # Handle input file path with normalization
+    input_file_path = args.input_file
+    if not input_file_path:
         print(
             "Error: No input file specified. Use --input-file or set input_file in config."
         )
         return
+
+    # Normalize input file path to ensure .json extension
+    input_file_path = str(
+        Path(input_file_path).parent
+        / normalize_json_filename(Path(input_file_path).name)
+    )
 
     if not args.output_dir:
         print(
@@ -520,7 +586,7 @@ def main() -> None:
     print(f"✅ Model '{args.model}' validated successfully.")
 
     initialize_globals_from_config(APP_CONFIG.openai_o_model_keywords)
-    problems = read_problems(args.input_file)
+    problems = read_problems(input_file_path)
     if not problems:
         print("No problems loaded. Exiting.")
         return
@@ -529,8 +595,16 @@ def main() -> None:
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
     # Get input filename from the input file path
-    input_filename = Path(args.input_file).name
-    output_template = APP_CONFIG.output_file or "[input_file]_[model]"
+    input_filename = Path(input_file_path).name
+    output_template = (
+        args.output_file or APP_CONFIG.output_file or "{input_file}_{model}"
+    )
+
+    # Warning if no output template is configured
+    if not args.output_file and not APP_CONFIG.output_file:
+        print(
+            "⚠️  Warning: No output_file template specified in config or CLI. Using default: {input_file}_{model}"
+        )
 
     output_file = get_output_file(
         output_dir_path, args.model, input_filename, output_template

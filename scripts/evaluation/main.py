@@ -17,6 +17,8 @@ __all__: Final[list[str]] = [
     "main_cli",
     "load_evaluation_config",
     "EvaluationConfig",
+    "get_file_path_with_normalization",
+    "normalize_json_filename",
 ]
 
 progress = 0
@@ -39,6 +41,36 @@ def initialize_logging(log_file_path: str) -> None:
 
     with open(log_file_path, "w", encoding="utf-8") as f:
         f.write("")
+
+
+def normalize_json_filename(filename: str) -> str:
+    """
+    Normalizes a filename to ensure it has a .json extension.
+
+    Args:
+        filename: The input filename (with or without .json extension)
+
+    Returns:
+        The filename with .json extension ensured
+    """
+    if not filename.endswith(".json"):
+        return f"{filename}.json"
+    return filename
+
+
+def get_file_path_with_normalization(folder: str, filename: str) -> str:
+    """
+    Constructs the full file path from folder and filename, normalizing the JSON extension.
+
+    Args:
+        folder: The directory containing files
+        filename: The filename (with or without .json extension)
+
+    Returns:
+        The full path to the file with .json extension ensured
+    """
+    normalized_filename = normalize_json_filename(filename)
+    return str(Path(folder) / normalized_filename)
 
 
 def get_evaluation_output_file(
@@ -79,18 +111,18 @@ def get_evaluation_output_file(
     api_caller_output_computed = ""
     if api_caller_output_file and api_caller_model and api_caller_input_file:
         api_caller_output_computed = api_caller_output_file.replace(
-            "[input_file]", api_caller_input_base
-        ).replace("[model]", api_caller_model_sanitized)
+            "{input_file}", api_caller_input_base
+        ).replace("{model}", api_caller_model_sanitized)
         # Remove .json extension for base name
         api_caller_output_computed = Path(api_caller_output_computed).stem
 
     # Replace placeholders in the template
     output_filename = (
-        output_template.replace("[gt_file]", gt_base)
-        .replace("[model_answers_file]", model_answers_base)
-        .replace("[api_caller_model]", api_caller_model_sanitized)
-        .replace("[api_caller_input_file]", api_caller_input_base)
-        .replace("[api_caller_output_file]", api_caller_output_computed)
+        output_template.replace("{gt_file}", gt_base)
+        .replace("{model_answers_file}", model_answers_base)
+        .replace("{api_caller_model}", api_caller_model_sanitized)
+        .replace("{api_caller_input_file}", api_caller_input_base)
+        .replace("{api_caller_output_file}", api_caller_output_computed)
     )
 
     # Ensure .json extension
@@ -128,16 +160,16 @@ def expand_template_placeholders(
     api_caller_output_computed = ""
     if api_caller_output_file and api_caller_model and api_caller_input_file:
         api_caller_output_computed = api_caller_output_file.replace(
-            "[input_file]", api_caller_input_base
-        ).replace("[model]", api_caller_model_sanitized)
+            "{input_file}", api_caller_input_base
+        ).replace("{model}", api_caller_model_sanitized)
         # Remove .json extension for base name
         api_caller_output_computed = Path(api_caller_output_computed).stem
 
     # Replace cross-module placeholders
     expanded = (
-        template.replace("[api_caller_model]", api_caller_model_sanitized)
-        .replace("[api_caller_input_file]", api_caller_input_base)
-        .replace("[api_caller_output_file]", api_caller_output_computed)
+        template.replace("{api_caller_model}", api_caller_model_sanitized)
+        .replace("{api_caller_input_file}", api_caller_input_base)
+        .replace("{api_caller_output_file}", api_caller_output_computed)
     )
 
     # Ensure .json extension if needed
@@ -335,7 +367,9 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
             config.api_caller_input_file or "",
             config.api_caller_output_file or "",
         )
-        default_gt_path = str(Path(config.gt_folder) / gt_file_expanded)
+        default_gt_path = get_file_path_with_normalization(
+            config.gt_folder, gt_file_expanded
+        )
 
     default_model_answers_path = None
     if config.model_answers_folder and config.model_answers_file:
@@ -345,8 +379,8 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
             config.api_caller_input_file or "",
             config.api_caller_output_file or "",
         )
-        default_model_answers_path = str(
-            Path(config.model_answers_folder) / model_answers_file_expanded
+        default_model_answers_path = get_file_path_with_normalization(
+            config.model_answers_folder, model_answers_file_expanded
         )
 
     parser.add_argument(
@@ -416,7 +450,7 @@ def main_cli() -> None:
 
     gt_filename = Path(args.gt_file).name
     model_answers_filename = Path(args.model_answers_file).name
-    output_template = config.output_file or "[gt_file]_[model_answers_file]_evaluation"
+    output_template = config.output_file or "{gt_file}_{model_answers_file}_evaluation"
 
     output_file = get_evaluation_output_file(
         output_dir_path,
@@ -441,9 +475,29 @@ def main_cli() -> None:
     )
     print(f"  - Log file: {args.log_file}")
 
+    # Normalize file paths to ensure .json extension
+    # If user provided just filename, use configured folder; otherwise use provided path
+    gt_path = Path(args.gt_file)
+    if gt_path.parent == Path(".") and config.gt_folder:
+        normalized_gt_file = get_file_path_with_normalization(
+            config.gt_folder, gt_path.name
+        )
+    else:
+        normalized_gt_file = str(gt_path.parent / normalize_json_filename(gt_path.name))
+
+    model_path = Path(args.model_answers_file)
+    if model_path.parent == Path(".") and config.model_answers_folder:
+        normalized_model_file = get_file_path_with_normalization(
+            config.model_answers_folder, model_path.name
+        )
+    else:
+        normalized_model_file = str(
+            model_path.parent / normalize_json_filename(model_path.name)
+        )
+
     result_table = main(
-        args.gt_file,
-        args.model_answers_file,
+        normalized_gt_file,
+        normalized_model_file,
         str(output_file),
         scoring_params,
         args.log_file,
