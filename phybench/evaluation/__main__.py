@@ -33,11 +33,11 @@ def main_entry() -> None:
             config = load_evaluation_config()
             print("Running with config parameters...")
 
-            if not config.gt_folder or not config.gt_file:
+            if not config.gt_dir or not config.gt_file:
                 raise ValueError(
                     "Ground truth folder and file must be specified in config.ini"
                 )
-            if not config.model_answers_folder or not config.model_answers_file:
+            if not config.model_answers_dir or not config.model_answers_file:
                 raise ValueError(
                     "Model answers folder and file must be specified in config.ini"
                 )
@@ -62,7 +62,7 @@ def main_entry() -> None:
                 config.api_caller_output_file or "",
             )
             gt_file_path = get_file_path_with_normalization(
-                config.gt_folder, gt_file_expanded
+                config.gt_dir, gt_file_expanded
             )
 
             model_answers_file_expanded = expand_template_placeholders(
@@ -72,7 +72,7 @@ def main_entry() -> None:
                 config.api_caller_output_file or "",
             )
             model_answers_file_path = get_file_path_with_normalization(
-                config.model_answers_folder, model_answers_file_expanded
+                config.model_answers_dir, model_answers_file_expanded
             )
 
             # Generate output file path using template

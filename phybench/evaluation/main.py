@@ -360,7 +360,7 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
 
     # Build default file paths from folders + filenames, with cross-module placeholder support
     default_gt_path = None
-    if config.gt_folder and config.gt_file:
+    if config.gt_dir and config.gt_file:
         gt_file_expanded = expand_template_placeholders(
             config.gt_file,
             config.api_caller_model or "",
@@ -368,11 +368,11 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
             config.api_caller_output_file or "",
         )
         default_gt_path = get_file_path_with_normalization(
-            config.gt_folder, gt_file_expanded
+            config.gt_dir, gt_file_expanded
         )
 
     default_model_answers_path = None
-    if config.model_answers_folder and config.model_answers_file:
+    if config.model_answers_dir and config.model_answers_file:
         model_answers_file_expanded = expand_template_placeholders(
             config.model_answers_file,
             config.api_caller_model or "",
@@ -380,7 +380,7 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
             config.api_caller_output_file or "",
         )
         default_model_answers_path = get_file_path_with_normalization(
-            config.model_answers_folder, model_answers_file_expanded
+            config.model_answers_dir, model_answers_file_expanded
         )
 
     parser.add_argument(
@@ -478,17 +478,17 @@ def main_cli() -> None:
     # Normalize file paths to ensure .json extension
     # If user provided just filename, use configured folder; otherwise use provided path
     gt_path = Path(args.gt_file)
-    if gt_path.parent == Path(".") and config.gt_folder:
+    if gt_path.parent == Path(".") and config.gt_dir:
         normalized_gt_file = get_file_path_with_normalization(
-            config.gt_folder, gt_path.name
+            config.gt_dir, gt_path.name
         )
     else:
         normalized_gt_file = str(gt_path.parent / normalize_json_filename(gt_path.name))
 
     model_path = Path(args.model_answers_file)
-    if model_path.parent == Path(".") and config.model_answers_folder:
+    if model_path.parent == Path(".") and config.model_answers_dir:
         normalized_model_file = get_file_path_with_normalization(
-            config.model_answers_folder, model_path.name
+            config.model_answers_dir, model_path.name
         )
     else:
         normalized_model_file = str(

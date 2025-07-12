@@ -16,7 +16,7 @@ openai_o_model_keywords = o3-mini, o3 (high), o3-high, o3-mini (high), o4-mini, 
 
 [api_caller.paths]
 # Directory containing input JSON files
-input_folder = data/ground_truth
+input_dir = data/ground_truth
 # Input filename (without path, with or without .json extension)
 input_file = test.json
 # Directory to save output JSON files (individual model solution files)
@@ -43,7 +43,7 @@ max_task_queue_size = 100
 ; -------------------------------- evaluation -------------------------------- ;
 [evaluation.paths]
 # Directory containing ground truth files
-gt_folder = data/ground_truth
+gt_dir = data/ground_truth
 # Ground truth filename (without path, with or without .json extension)
 # Available placeholders:
 #   {api_caller_input_file}  - Input filename from API caller (e.g., "test")
@@ -51,7 +51,7 @@ gt_folder = data/ground_truth
 #   {api_caller_output_file} - Output filename from API caller (e.g., "test_gpt-4o")
 gt_file = {api_caller_input_file}
 # Directory containing model solution files
-model_answers_folder = data/model_solutions
+model_answers_dir = data/model_solutions
 # Model answers filename (without path, with or without .json extension)
 # Available placeholders: Same as gt_file above
 model_answers_file = {api_caller_output_file}

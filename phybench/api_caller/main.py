@@ -384,7 +384,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     )
 
     # Build default input file path from folder + filename
-    default_input_path = get_input_file_path(config.input_folder, config.input_file)
+    default_input_path = get_input_file_path(config.input_dir, config.input_file)
 
     parser.add_argument(
         "--input-file",
@@ -393,7 +393,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     )
     parser.add_argument(
         "--input-folder",
-        default=config.input_folder,
+        default=config.input_dir,
         help="Directory containing input JSON files",
     )
     parser.add_argument(
@@ -519,22 +519,22 @@ def normalize_json_filename(filename: str) -> str:
     return filename
 
 
-def get_input_file_path(input_folder: str | None, input_file: str | None) -> str | None:
+def get_input_file_path(input_dir: str | None, input_file: str | None) -> str | None:
     """
     Constructs the full input file path from folder and filename, normalizing the JSON extension.
 
     Args:
-        input_folder: The directory containing input files
+        input_dir: The directory containing input files
         input_file: The input filename (with or without .json extension)
 
     Returns:
         The full path to the input file, or None if either argument is None
     """
-    if not input_folder or not input_file:
+    if not input_dir or not input_file:
         return None
 
     normalized_filename = normalize_json_filename(input_file)
-    return str(Path(input_folder) / normalized_filename)
+    return str(Path(input_dir) / normalized_filename)
 
 
 def main() -> None:
