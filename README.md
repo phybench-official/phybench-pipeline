@@ -174,10 +174,10 @@ Score formula: `max(0, initial_score - scoring_slope × (distance / tree_size))`
 ### Development Setup
 
 #### Code Quality Tools
-The project uses **Ruff** for linting and formatting, with **pre-commit** hooks for automatic checks:
+The project uses **Ruff** for linting and formatting, **mypy** for basic type checking, with **pre-commit** hooks for automatic checks:
 
 ```bash
-# Install development dependencies (includes Ruff)
+# Install development dependencies (includes Ruff and mypy)
 uv sync
 
 # Install pre-commit hooks
@@ -189,6 +189,9 @@ uv run ruff check scripts/
 # Run formatting manually
 uv run ruff format scripts/
 
+# Run type checking manually (lenient mode for existing codebase)
+uv run mypy scripts/
+
 # Run both linting and formatting on all files
 pre-commit run --all-files
 ```
@@ -197,6 +200,7 @@ pre-commit run --all-files
 Pre-commit hooks automatically run on each commit and include:
 - **Ruff Linter**: Checks code style, imports, and common issues
 - **Ruff Formatter**: Ensures consistent code formatting
+- **mypy**: Basic type checking (configured for existing codebase with lenient settings)
 
 Configuration files:
 - `.pre-commit-config.yaml`: Pre-commit hook configuration
