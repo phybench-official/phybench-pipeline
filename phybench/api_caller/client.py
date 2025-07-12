@@ -9,6 +9,10 @@ from openai.types.chat import ChatCompletion
 from openai.types.completion_usage import CompletionUsage
 from tqdm import tqdm
 
+from phybench.logging_config import get_logger
+
+logger = get_logger(__name__)
+
 _NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
 
 
@@ -41,14 +45,14 @@ def read_problems(filename: str) -> list[dict[str, Any]]:
         with open(filename, encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"Error: File '{filename}' not found.")
+        logger.error(f"File '{filename}' not found.")
         return []
     except json.JSONDecodeError:
-        print(f"Error: File '{filename}' is not a valid JSON file.")
+        logger.error(f"File '{filename}' is not a valid JSON file.")
         return []
 
     if not isinstance(data, list):
-        print(f"Error: File '{filename}' should contain a list of problems.")
+        logger.error(f"File '{filename}' should contain a list of problems.")
         return []
 
     return data
@@ -128,7 +132,7 @@ async def write_solution(solution: dict[str, Any], output_filename: str) -> bool
                 return True
 
             except Exception as e:
-                print(f"Attempt {attempt + 1} failed to write solution: {e}")
+                logger.warning(f"Attempt {attempt + 1} failed to write solution: {e}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(0.1 * (2**attempt))
                 else:
@@ -137,7 +141,7 @@ async def write_solution(solution: dict[str, Any], output_filename: str) -> bool
                         import shutil
 
                         shutil.copy2(backup_filename, output_filename)
-                        print(f"Restored from backup: {backup_filename}")
+                        logger.info(f"Restored from backup: {backup_filename}")
 
     return False
 
@@ -288,7 +292,7 @@ async def process_problem(
     if pbar:
         pbar.set_description(status_msg)
     else:
-        print(status_msg)
+        logger.info(status_msg)
 
     solution_data = await generate_solution_data(
         async_client_instance, problem, model, repeat_idx, timeout=api_timeout
@@ -312,10 +316,10 @@ async def process_problem(
         pbar.set_description(final_status)
         pbar.update(1)
     else:
-        print(final_status)
+        logger.info(final_status)
 
     write_success = await write_solution(solution_data, output_filename)
     if not write_success:
-        print(f"Warning: Failed to write solution for problem {problem_id}")
+        logger.warning(f"Failed to write solution for problem {problem_id}")
 
     return solution_data

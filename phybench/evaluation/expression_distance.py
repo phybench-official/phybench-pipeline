@@ -28,8 +28,12 @@ from sympy import (
     pi as Pi,
 )
 
+from phybench.logging_config import get_logger
+
 from .latex_processor import master_convert
 from .tree_distance import ext_distance
+
+logger = get_logger(__name__)
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -276,7 +280,9 @@ def sympy_to_tree(expr: Any) -> TreeNode:
 
     else:
         # print(expr)
-        print(f"Unsupported Sympy type: {type(expr).__name__}, Expression: {expr}")
+        logger.error(
+            f"Unsupported Sympy type: {type(expr).__name__}, Expression: {expr}"
+        )
         raise ValueError(f"Unsupported SymPy type: {type(expr)}")
 
 
@@ -312,7 +318,8 @@ class TreeNode:
 
 def print_tree(node: TreeNode, indent: int = 0) -> None:
     """Print a tree structure"""
-    print("  " * indent + f"└─ {node.label}")
+    logger = get_logger(__name__)
+    logger.debug("  " * indent + f"└─ {node.label}")
     for child in node.children:
         print_tree(child, indent + 1)
 
@@ -397,7 +404,9 @@ def EED(
         answer_exp = master_convert(answer_latex)
         test_exp = master_convert(test_latex)
     except Exception as e:
-        print("Failed to convert input latex to sympy expression, please check it")
+        logger.warning(
+            f"Failed to convert latex to sympy expression: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+        )
         if debug_mode:
             raise LaTeXError(
                 f"Fail to convert latex.\n GT:{answer_latex}\n GEN:{test_latex}"
@@ -423,8 +432,8 @@ def EED(
             return 100, 0.0, 0, 0
 
     except Exception as e:
-        print(
-            f"Something happened during simplification, returning zero: {type(e).__name__}: {e}"
+        logger.warning(
+            f"Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -437,10 +446,12 @@ def EED(
         tree_test = sympy_to_tree(test_exp)
 
     except Exception as e:
-        print("Failed to build expression tree, returning zero")
+        logger.warning(
+            f"Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+        )
         if debug_mode:
             raise SymPyError(
-                f"Failed to build the sympy expression tree.\n GT:{answer_exp}\n GEN:{test_exp}"
+                f"Failed to build the sympy expression tree.\nGT:{answer_exp}\nGEN:{test_exp}"
             ) from e
         return 0, -1, -1, -1
 
@@ -466,7 +477,7 @@ def EED(
             update_cost=update_func,
         )
     except Exception as e:
-        print("Failed to calculate distance")
+        logger.error(f"Failed to calculate distance: {type(e).__name__}: {e}")
         if debug_mode:
             raise DistError(
                 f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"

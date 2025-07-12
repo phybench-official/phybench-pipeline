@@ -8,6 +8,8 @@ import sys
 import warnings
 from pathlib import Path
 
+from phybench.logging_config import get_logger, setup_logging
+
 from .main import (
     load_evaluation_config,
     main,
@@ -16,6 +18,8 @@ from .main import (
     resolve_log_file_path,
     resolve_output_file_path,
 )
+
+logger = get_logger(__name__)
 
 # Suppress the frozen runpy warning that occurs when running as module
 # This warning is an expected behavior, and does not indicate an error
@@ -31,7 +35,16 @@ def main_entry() -> None:
     else:
         try:
             config = load_evaluation_config()
-            print("Running with config parameters...")
+
+            # Setup logging early with config-based log file
+            log_file_path = resolve_log_file_path(
+                None, config.log_dir, config.log_file, config
+            )
+            setup_logging(
+                log_file=log_file_path, log_level="INFO", console_level="INFO"
+            )
+
+            logger.info("Running evaluation with config parameters...")
 
             if not config.gt_dir or not config.gt_file:
                 raise ValueError(
@@ -89,13 +102,17 @@ def main_entry() -> None:
 
             # Validate required inputs
             if not Path(gt_file_path).exists():
-                print(f"Error: Ground truth file not found: {gt_file_path}")
-                print("Please check your configuration or create the required files.")
+                logger.error(f"Ground truth file not found: {gt_file_path}")
+                logger.error(
+                    "Please check your configuration or create the required files."
+                )
                 return
 
             if not Path(model_answers_file_path).exists():
-                print(f"Error: Model answers file not found: {model_answers_file_path}")
-                print("Please check your configuration or create the required files.")
+                logger.error(f"Model answers file not found: {model_answers_file_path}")
+                logger.error(
+                    "Please check your configuration or create the required files."
+                )
                 return
 
             # Create output and log directories if needed
@@ -104,12 +121,12 @@ def main_entry() -> None:
 
             scoring_params = [config.initial_score, config.scoring_slope]
 
-            print("🎯 Starting evaluation process:")
-            print(f"  - Ground truth file: {gt_file_path}")
-            print(f"  - Model answers file: {model_answers_file_path}")
-            print(f"  - Output file: {output_file_path}")
-            print(f"  - Log file: {log_file_path}")
-            print(f"  - Scoring parameters: {scoring_params}")
+            logger.info("🎯 Starting evaluation process:")
+            logger.info(f"  - Ground truth file: {gt_file_path}")
+            logger.info(f"  - Model answers file: {model_answers_file_path}")
+            logger.info(f"  - Output file: {output_file_path}")
+            logger.info(f"  - Log file: {log_file_path}")
+            logger.info(f"  - Scoring parameters: {scoring_params}")
 
             main(
                 gt_file_path,
@@ -119,8 +136,10 @@ def main_entry() -> None:
                 log_file_path,
             )
         except (FileNotFoundError, ValueError) as e:
-            print(f"Configuration error: {e}")
-            print("Please check your config.ini file or use command line arguments.")
+            logger.error(f"Configuration error: {e}")
+            logger.error(
+                "Please check your config.ini file or use command line arguments."
+            )
             sys.exit(1)
 
 

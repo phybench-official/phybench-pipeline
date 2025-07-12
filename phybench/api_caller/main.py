@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import queue
+import shutil
 import sys
 import threading
 import time
@@ -25,6 +26,10 @@ from client import (  # noqa: E402
     read_problems,
 )
 from openai import AsyncOpenAI  # noqa: E402
+
+from phybench.logging_config import get_logger, setup_logging  # noqa: E402
+
+logger = get_logger(__name__)
 
 APP_CONFIG: ApiConfig | None = None
 
@@ -111,10 +116,10 @@ def producer(
         pbar_desc: Description for the tqdm progress bar.
     """
     if not problems:
-        print("No problems to process.")
+        logger.warning("No problems to process")
         return
 
-    print("🔍 Checking for existing solutions to avoid duplicates...")
+    logger.info("🔍 Checking for existing solutions to avoid duplicates...")
     completed_tasks = check_existing_solutions(output_file)
     completed_for_model = completed_tasks.get(model, set())
 
@@ -139,13 +144,13 @@ def producer(
             }
             tasks_to_add.append(task)
 
-    print("📊 Task Summary:")
-    print(f"  - Total possible tasks: {total_possible_tasks}")
-    print(f"  - Already completed: {skipped_count}")
-    print(f"  - Tasks to process: {len(tasks_to_add)}")
+    logger.info("📊 Task Summary:")
+    logger.info(f"  - Total possible tasks: {total_possible_tasks}")
+    logger.info(f"  - Already completed: {skipped_count}")
+    logger.info(f"  - Tasks to process: {len(tasks_to_add)}")
 
     if not tasks_to_add:
-        print("All tasks already completed. Nothing to do.")
+        logger.info("All tasks already completed. Nothing to do.")
         return
 
     with tqdm(total=len(tasks_to_add), desc=pbar_desc, unit="task") as pbar:
@@ -153,7 +158,7 @@ def producer(
             task_queue.put(task)
             pbar.update(1)
 
-    print("Producer: Finished enqueuing all tasks.")
+    logger.info("Producer: Finished enqueuing all tasks")
 
 
 async def consumer_task_processor(
@@ -218,7 +223,7 @@ async def consumer_task_processor(
         except queue.Empty:
             continue
         except Exception as e:
-            print(f"Consumer error: {e}")
+            logger.error(f"Consumer error: {e}")
             break
 
 
@@ -240,7 +245,7 @@ def run_consumer_loop(
     try:
         asyncio.run(actual_processing_loop())
     except Exception as e:
-        print(f"Consumer loop error: {e}")
+        logger.error(f"Consumer loop error: {e}")
 
 
 def sync_write_solutions(solutions: list[dict[str, Any]], output_file: Path) -> None:
@@ -258,8 +263,6 @@ def sync_write_solutions(solutions: list[dict[str, Any]], output_file: Path) -> 
             backup_file = output_file.with_suffix(f"{output_file.suffix}.backup")
 
             if output_file.exists():
-                import shutil
-
                 shutil.copy2(output_file, backup_file)
 
             with open(output_file, "w", encoding="utf-8") as f:
@@ -271,16 +274,14 @@ def sync_write_solutions(solutions: list[dict[str, Any]], output_file: Path) -> 
             return
 
         except Exception as e:
-            print(f"Write attempt {attempt + 1} failed: {e}")
+            logger.error(f"Write attempt {attempt + 1} failed: {e}")
             if attempt < max_retries - 1:
                 time.sleep(0.1 * (2**attempt))
             else:
                 backup_file = output_file.with_suffix(f"{output_file.suffix}.backup")
                 if backup_file.exists():
-                    import shutil
-
                     shutil.copy2(backup_file, output_file)
-                    print(f"Restored from backup: {backup_file}")
+                    logger.info(f"Restored from backup: {backup_file}")
                     backup_file.unlink()
 
 
@@ -307,7 +308,7 @@ def result_writer(
             with open(output_file, encoding="utf-8") as f:
                 existing_solutions = json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load existing solutions: {e}")
+            logger.warning(f"Could not load existing solutions: {e}")
 
     all_solutions_for_file: list[dict[str, Any]] = existing_solutions
 
@@ -351,27 +352,27 @@ def result_writer(
                 result_queue.task_done()
 
             except queue.Empty:
-                print("Timeout waiting for results. Continuing...")
+                logger.debug("Timeout waiting for results. Continuing...")
                 continue
             except Exception as e:
-                print(f"Error in result writer: {e}")
+                logger.error(f"Error in result writer: {e}")
                 break
 
     all_solutions_for_file.extend(current_run_buffer)
 
-    print(f"\n📝 Writing {len(all_solutions_for_file)} solutions to {output_file}...")
+    logger.info(f"📝 Writing {len(all_solutions_for_file)} solutions to {output_file}")
     sync_write_solutions(all_solutions_for_file, output_file)
 
-    print("\n📊 Final Statistics:")
-    print(f"  - Processed: {processed_count}")
-    print(f"  - Successful: {success_count}")
-    print(f"  - Errors: {error_count}")
-    print(
+    logger.info("📊 Final Statistics:")
+    logger.info(f"  - Processed: {processed_count}")
+    logger.info(f"  - Successful: {success_count}")
+    logger.info(f"  - Errors: {error_count}")
+    logger.info(
         f"  - Success Rate: {success_count / processed_count * 100:.1f}%"
         if processed_count > 0
         else "  - Success Rate: 0%"
     )
-    print(
+    logger.info(
         f"  - Average Time: {total_time / processed_count:.1f}s"
         if processed_count > 0
         else "  - Average Time: 0s"
@@ -467,7 +468,7 @@ def check_existing_solutions(output_file: Path) -> dict[str, set[str]]:
             completed_tasks[model].add(task_key)
 
     except Exception as e:
-        print(f"Warning: Could not check existing solutions: {e}")
+        logger.warning(f"Could not check existing solutions: {e}")
 
     return completed_tasks
 
@@ -500,7 +501,7 @@ async def validate_model(
         finally:
             await client.close()
     except Exception as e:
-        print(f"Model validation failed for '{model}': {e}")
+        logger.error(f"Model validation failed for '{model}': {e}")
         return False
 
 
@@ -543,11 +544,17 @@ def main() -> None:
     APP_CONFIG = load_api_config()
     args = parse_args(APP_CONFIG)
 
+    # Setup logging early
+    setup_logging(
+        log_level="DEBUG" if args.model and "debug" in args.model.lower() else "INFO",
+        console_level="INFO",  # Keep console less verbose
+    )
+
     # Handle input file path with normalization
     input_file_path = args.input_file
     if not input_file_path:
-        print(
-            "Error: No input file specified. Use --input-file or set input_file in config."
+        logger.error(
+            "No input file specified. Use --input-file or set input_file in config."
         )
         return
 
@@ -558,37 +565,37 @@ def main() -> None:
     )
 
     if not args.output_dir:
-        print(
-            "Error: No output directory specified. Use --output-dir or set output_dir in config."
+        logger.error(
+            "No output directory specified. Use --output-dir or set output_dir in config."
         )
         return
 
     if not args.model or args.model.strip() == "":
-        print("Error: No model specified. Use --model or set model in config.")
+        logger.error("No model specified. Use --model or set model in config.")
         return
 
     if not APP_CONFIG.api_key:
-        print("Error: No API key specified. Please set api_key in config.")
+        logger.error("No API key specified. Please set api_key in config.")
         return
 
     if not APP_CONFIG.base_url:
-        print("Error: No base URL specified. Please set base_url in config.")
+        logger.error("No base URL specified. Please set base_url in config.")
         return
 
-    print(f"🔍 Validating model '{args.model}'...")
+    logger.info(f"🔍 Validating model '{args.model}'...")
     if not asyncio.run(
         validate_model(APP_CONFIG.api_key, APP_CONFIG.base_url, args.model)
     ):
-        print(
-            f"Error: Model '{args.model}' is not available or not working. Please check your model name and API configuration."
+        logger.error(
+            f"Model '{args.model}' is not available. Please check your model name and API configuration."
         )
         return
-    print(f"✅ Model '{args.model}' validated successfully.")
+    logger.success(f"✅ Model '{args.model}' validated successfully.")
 
     initialize_globals_from_config(APP_CONFIG.openai_o_model_keywords)
     problems = read_problems(input_file_path)
     if not problems:
-        print("No problems loaded. Exiting.")
+        logger.error("No problems loaded. Exiting.")
         return
 
     output_dir_path = Path(args.output_dir)
@@ -602,8 +609,8 @@ def main() -> None:
 
     # Warning if no output template is configured
     if not args.output_file and not APP_CONFIG.output_file:
-        print(
-            "⚠️  Warning: No output_file template specified in config or CLI. Using default: {input_file}_{model}"
+        logger.warning(
+            "No output_file template specified in config or CLI. Using default: {input_file}_{model}"
         )
 
     output_file = get_output_file(
@@ -615,13 +622,13 @@ def main() -> None:
 
     total_tasks = len(problems) * args.repeat_count
 
-    print("🚀 Starting parallel processing:")
-    print(f"  - Model: {args.model}")
-    print(f"  - Problems: {len(problems)}")
-    print(f"  - Repeat count: {args.repeat_count}")
-    print(f"  - Total tasks: {total_tasks}")
-    print(f"  - Consumers: {args.num_consumers}")
-    print(f"  - Output: {output_file}")
+    logger.info("🚀 Starting parallel processing:")
+    logger.info(f"  - Model: {args.model}")
+    logger.info(f"  - Problems: {len(problems)}")
+    logger.info(f"  - Repeat count: {args.repeat_count}")
+    logger.info(f"  - Total tasks: {total_tasks}")
+    logger.info(f"  - Consumers: {args.num_consumers}")
+    logger.info(f"  - Output: {output_file}")
 
     producer_thread = threading.Thread(
         target=producer,
@@ -653,23 +660,23 @@ def main() -> None:
     writer_thread.start()
 
     producer_thread.join()
-    print("Producer finished.")
+    logger.info("Producer finished")
 
     task_queue.join()
-    print("All tasks completed.")
+    logger.info("All tasks completed")
 
     for _ in range(args.num_consumers):
         task_queue.put(None)
 
     for thread in consumer_threads:
         thread.join()
-    print("All consumers finished.")
+    logger.info("All consumers finished")
 
     result_queue.put(None)
     writer_thread.join()
-    print("Writer finished.")
+    logger.info("Writer finished")
 
-    print("🎉 All processing completed!")
+    logger.success("🎉 All processing completed!")
 
 
 if __name__ == "__main__":

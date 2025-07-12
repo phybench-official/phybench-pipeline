@@ -9,12 +9,16 @@ from typing import Any, Final
 
 from tabulate import tabulate
 
+from phybench.logging_config import get_logger, setup_logging
+
 from .evaluation_config import (
     EvaluationConfig,
     get_log_file_path,
     load_evaluation_config,
 )
 from .expression_distance import EED
+
+logger = get_logger(__name__)
 
 __all__: Final[list[str]] = [
     "main",
@@ -47,7 +51,6 @@ def initialize_logging(log_file_path: str) -> None:
     """Initialize logging with configurable file path."""
     log_path = Path(log_file_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Log directory created/verified: {log_path.parent}")
 
     with open(log_file_path, "w", encoding="utf-8") as f:
         f.write("")
@@ -322,13 +325,13 @@ def main(
                     }
                 )
 
-    print(f"Successfully Built Worklist, total_length:{len(work_list)}")
+    logger.info(f"Successfully built worklist, total length: {len(work_list)}")
 
     # scoring
     # 根据final_answer中的模型回答和approved_problems中的答案进行评分,修改final_answer文件
 
     cpu_cores = multiprocessing.cpu_count()
-    print(f"We have {cpu_cores} cores for grading...")
+    logger.info(f"Available CPU cores for evaluation: {cpu_cores}")
     t0 = time.time()
     # cpu_cores=1
     results = []
@@ -338,7 +341,7 @@ def main(
         results = list(pool.map(process_single_problem, work_list))
 
     t1 = time.time()
-    print(f"Evaluation Finished, total time: {t1 - t0:.2f}s")
+    logger.info(f"Evaluation finished, total time: {t1 - t0:.2f}s")
 
     # plot
     model_scores: dict[str, float] = {}
@@ -385,7 +388,6 @@ def main(
     # 存储data为json
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Output directory created/verified: {output_path.parent}")
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(approved_problems, f, ensure_ascii=False, indent=4)
@@ -398,10 +400,10 @@ def main(
     s_opt = tabulate(
         output_table, headers=["Model", "Score"], tablefmt="fancy_grid", floatfmt=".2f"
     )
-    print(s_opt)
-    # print(model_scores)
+    logger.info("Evaluation results:")
+    logger.info(f"\n{s_opt}")
 
-    print("Complete!")
+    logger.success("Evaluation complete!")
 
     return s_opt
 
@@ -653,6 +655,22 @@ def main_cli() -> None:
     config = load_evaluation_config()
     args = parse_args(config)
 
+    # Resolve log file path and setup logging early
+    log_file_path = resolve_log_file_path(
+        args.log_file,
+        args.log_dir,
+        args.log_filename,
+        config,
+    )
+
+    setup_logging(
+        log_file=log_file_path,
+        log_level="DEBUG" if hasattr(args, "debug") and args.debug else "INFO",
+        console_level="INFO",
+    )
+
+    logger = get_logger(__name__)
+
     # Resolve file paths consistently
     gt_file_path = resolve_file_path(
         args.gt_file,
@@ -688,13 +706,13 @@ def main_cli() -> None:
 
     # Validate required inputs
     if not Path(gt_file_path).exists():
-        print(f"Error: Ground truth file not found: {gt_file_path}")
-        print("Use --gt-file or --gt-dir with --gt-filename")
+        logger.error(f"Ground truth file not found: {gt_file_path}")
+        logger.error("Use --gt-file or --gt-dir with --gt-filename")
         return
 
     if not Path(model_answers_file_path).exists():
-        print(f"Error: Model answers file not found: {model_answers_file_path}")
-        print(
+        logger.error(f"Model answers file not found: {model_answers_file_path}")
+        logger.error(
             "Use --model-answers-file or --model-answers-dir with --model-answers-filename"
         )
         return
@@ -707,13 +725,13 @@ def main_cli() -> None:
 
     scoring_params = [args.initial_score, args.scoring_slope]
 
-    print("🎯 Starting evaluation process:")
-    print(f"  - Ground truth file: {gt_file_path}")
-    print(f"  - Model answers file: {model_answers_file_path}")
-    print(f"  - Output file: {output_file_path}")
-    print(f"  - Log file: {log_file_path}")
-    print(f"  - Scoring parameters: {scoring_params}")
-    print(
+    logger.info("🎯 Starting evaluation process:")
+    logger.info(f"  - Ground truth file: {gt_file_path}")
+    logger.info(f"  - Model answers file: {model_answers_file_path}")
+    logger.info(f"  - Output file: {output_file_path}")
+    logger.info(f"  - Log file: {log_file_path}")
+    logger.info(f"  - Scoring parameters: {scoring_params}")
+    logger.info(
         f"  - Processes: {args.num_processes if args.num_processes > 0 else 'auto-detect'}"
     )
 
@@ -724,7 +742,8 @@ def main_cli() -> None:
         scoring_params,
         log_file_path,
     )
-    print(result_table)
+    logger.info("Evaluation results:")
+    logger.info(f"\n{result_table}")
 
 
 if __name__ == "__main__":
