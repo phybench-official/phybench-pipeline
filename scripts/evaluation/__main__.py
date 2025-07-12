@@ -5,6 +5,7 @@ Usage: python -m scripts.evaluation [arguments]
 """
 
 import sys
+import warnings
 from pathlib import Path
 
 from .main import (
@@ -14,6 +15,12 @@ from .main import (
     load_evaluation_config,
     main,
     main_cli,
+)
+
+# Suppress the frozen runpy warning that occurs when running as module
+# This warning is an expected behavior, and does not indicate an error
+warnings.filterwarnings(
+    "ignore", message=".*found in sys.modules.*", category=RuntimeWarning
 )
 
 
