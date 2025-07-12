@@ -54,21 +54,21 @@ class AnnotatedTree:
         self.lmds: list[int] = []  # left most descendents of each nodes
         self.keyroots: list[int] = []  # the keyroots in the original paper
 
-        stack = []
-        pstack = []
+        stack: list[tuple[Any, collections.deque[int]]] = []
+        pstack: list[tuple[tuple[Any, int], collections.deque[int]]] = []
         stack.append((root, collections.deque()))
         j = 0
         while len(stack) > 0:
             n, anc = stack.pop()
             nid = j
             for c in self.get_children(n):
-                a = collections.deque(anc)
-                a.appendleft(nid)
-                stack.append((c, a))
+                anc_copy: collections.deque[int] = collections.deque(anc)
+                anc_copy.appendleft(nid)
+                stack.append((c, anc_copy))
             pstack.append(((n, nid), anc))
             j += 1
-        lmds = {}
-        keyroots = {}
+        lmds: dict[int, int] = {}
+        keyroots: dict[int, int] = {}
         i = 0
         while len(pstack) > 0:
             (n, nid), anc = pstack.pop()

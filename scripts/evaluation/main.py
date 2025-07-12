@@ -142,9 +142,10 @@ def main(
     print(f"Evaluation Finished, total time: {t1 - t0:.2f}s")
 
     # plot
-    model_scores, model_nums = {}, {}
+    model_scores: dict[str, float] = {}
+    model_nums: dict[str, int] = {}
     for name in model_list:
-        model_scores[name] = 0
+        model_scores[name] = 0.0
         model_nums[name] = 0
 
     dist_data = []

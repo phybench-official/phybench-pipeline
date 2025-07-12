@@ -197,20 +197,20 @@ def get_first_brace_command(s: str) -> str | None:
     return extract_command(s, brace_pos)
 
 
-def remove_overall_brace(s: str) -> tuple[str, int]:
+def remove_overall_brace(s: str) -> tuple[str, bool]:
     """
     Remove the overall {xxx} brace
     """
     pos = find_first_unescaped_brace(s)
     if pos == -1:
-        return s, 0
+        return s, False
     command = get_first_brace_command(s)
     if not command:
         content, final = extract_bracket_content(s, pos)
         # print(s[final])
         if content is not None and (final == len(s) - 1 or "}" not in s[final + 1 :]):
-            return content, 1
-    return s, 0
+            return content, True
+    return s, False
 
 
 def exp_frac(s: str) -> str:
@@ -406,7 +406,7 @@ def first_pre_process(s: str, extrac_box: bool = True) -> str:
         boxed_content = remove_command(s, "\\boxed", keep_inside=True)
     else:
         boxed_content = s
-    exist_overall_brace = True
+    exist_overall_brace: bool = True
     cnt = 0
     while exist_overall_brace and cnt < 10:
         boxed_content, exist_overall_brace = remove_overall_brace(boxed_content)
@@ -418,10 +418,10 @@ def first_pre_process(s: str, extrac_box: bool = True) -> str:
     last_equal_content = extract_last_equal_content(boxed_content)
     # print(last_equal_content)
 
-    exist_overall_brace = True
+    exist_overall_brace_2: bool = True
     cnt = 0
-    while exist_overall_brace and cnt < 10:
-        last_equal_content, exist_overall_brace = remove_overall_brace(
+    while exist_overall_brace_2 and cnt < 10:
+        last_equal_content, exist_overall_brace_2 = remove_overall_brace(
             last_equal_content
         )
         cnt += 1
@@ -526,8 +526,8 @@ def second_pre_process(s: str) -> str:
 
     for content in remove_content:
         s = s.replace(content, "")
-    for content in replace_content:
-        s = s.replace(content[0], content[1])
+    for old_content, new_content in replace_content:
+        s = s.replace(old_content, new_content)
     s = convert_latex_fractions(s)
     # print(s)
     s = bar_inside_vec(s)

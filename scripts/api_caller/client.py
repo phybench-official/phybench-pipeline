@@ -193,7 +193,7 @@ Use standard LaTeX conventions rigorously."""
     start_time = time.time()
 
     try:
-        params = {
+        params: dict[str, Any] = {
             "model": model,
             "messages": [{"role": "user", "content": full_user_prompt}],
             "timeout": timeout,
