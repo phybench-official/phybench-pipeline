@@ -383,18 +383,18 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
         description="Parallel API caller for physics problems"
     )
 
-    # Build default input file path from folder + filename
+    # Build default input file path from directory + filename
     default_input_path = get_input_file_path(config.input_dir, config.input_file)
 
     parser.add_argument(
-        "--input-file",
-        default=default_input_path,
-        help="Path to the input JSON file that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
-    )
-    parser.add_argument(
-        "--input-folder",
+        "--input-dir",
         default=config.input_dir,
         help="Directory containing input JSON files",
+    )
+    parser.add_argument(
+        "--input-file",
+        default=default_input_path,
+        help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
     )
     parser.add_argument(
         "--output-dir",
@@ -521,7 +521,7 @@ def normalize_json_filename(filename: str) -> str:
 
 def get_input_file_path(input_dir: str | None, input_file: str | None) -> str | None:
     """
-    Constructs the full input file path from folder and filename, normalizing the JSON extension.
+    Constructs the full input file path from directory and filename, normalizing the JSON extension.
 
     Args:
         input_dir: The directory containing input files

@@ -35,11 +35,11 @@ def main_entry() -> None:
 
             if not config.gt_dir or not config.gt_file:
                 raise ValueError(
-                    "Ground truth folder and file must be specified in config.ini"
+                    "Ground truth directory and file must be specified in config.ini"
                 )
             if not config.model_answers_dir or not config.model_answers_file:
                 raise ValueError(
-                    "Model answers folder and file must be specified in config.ini"
+                    "Model answers directory and file must be specified in config.ini"
                 )
             if not config.output_dir or not config.output_file:
                 raise ValueError(

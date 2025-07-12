@@ -68,19 +68,19 @@ def normalize_json_filename(filename: str) -> str:
     return filename
 
 
-def get_file_path_with_normalization(folder: str, filename: str) -> str:
+def get_file_path_with_normalization(dir: str, filename: str) -> str:
     """
-    Constructs the full file path from folder and filename, normalizing the JSON extension.
+    Constructs the full file path from directory and filename, normalizing the JSON extension.
 
     Args:
-        folder: The directory containing files
+        dir: The directory containing files
         filename: The filename (with or without .json extension)
 
     Returns:
         The full path to the file with .json extension ensured
     """
     normalized_filename = normalize_json_filename(filename)
-    return str(Path(folder) / normalized_filename)
+    return str(Path(dir) / normalized_filename)
 
 
 def get_evaluation_output_file(
@@ -412,7 +412,7 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
         description="Evaluate model answers against ground truth using EED scoring"
     )
 
-    # Build default file paths from folders + filenames, with cross-module placeholder support
+    # Build default file paths from directories + filenames, with cross-module placeholder support
     default_gt_path = None
     if config.gt_dir and config.gt_file:
         gt_file_expanded = expand_template_placeholders(
