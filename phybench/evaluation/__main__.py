@@ -8,6 +8,7 @@ import sys
 import warnings
 from pathlib import Path
 
+from .evaluation_config import get_log_file_path
 from .main import (
     expand_template_placeholders,
     get_evaluation_output_file,
@@ -90,7 +91,7 @@ def main_entry() -> None:
             )
 
             scoring_params = [config.initial_score, config.scoring_slope]
-            log_file = config.log_file or "evaluation_logs.txt"
+            log_file = get_log_file_path(config)
 
             print(f"  - Ground truth file: {gt_file_path}")
             print(f"  - Model answers file: {model_answers_file_path}")

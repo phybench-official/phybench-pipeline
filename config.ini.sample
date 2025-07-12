@@ -65,8 +65,11 @@ output_dir = data/evaluation_results
 #   {api_caller_model}       - Model name from API caller
 #   {api_caller_output_file} - Output filename from API caller
 output_file = {api_caller_input_file}
-# Log file path
-log_file = logs/evaluation.log
+# Directory to save log files
+log_dir = logs
+# Log filename template
+# Available placeholders: Same as output_file above
+log_file = {api_caller_input_file}
 
 [evaluation.scoring]
 # Base score assigned before distance penalty (higher = more lenient, range: 0-100)

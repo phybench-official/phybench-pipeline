@@ -15,6 +15,7 @@ class EvaluationConfig:
         self.model_answers_file: str | None = None
         self.output_dir: str | None = None
         self.output_file: str | None = None
+        self.log_dir: str | None = None
         self.log_file: str | None = None
         # Cross-module placeholders
         self.api_caller_model: str | None = None
@@ -47,6 +48,7 @@ def load_evaluation_config(
         config.model_answers_file = parser["evaluation.paths"].get("model_answers_file")
         config.output_dir = parser["evaluation.paths"].get("output_dir")
         config.output_file = parser["evaluation.paths"].get("output_file")
+        config.log_dir = parser["evaluation.paths"].get("log_dir")
         config.log_file = parser["evaluation.paths"].get("log_file")
 
     # Load cross-module placeholders from API caller config
@@ -64,3 +66,57 @@ def load_evaluation_config(
         config.num_processes = parser["evaluation.execution"].getint("num_processes")
 
     return config
+
+
+def get_log_file_path(config: EvaluationConfig) -> str:
+    """
+    Constructs the full log file path with placeholder expansion.
+
+    Args:
+        config: The evaluation configuration object.
+
+    Returns:
+        The full path to the log file with placeholders expanded.
+    """
+    if not config.log_dir or not config.log_file:
+        return "logs/evaluation.log"  # fallback default
+
+    # Expand placeholders in log filename using cross-module data
+    log_filename = config.log_file
+    if config.api_caller_model:
+        api_caller_model_sanitized = config.api_caller_model.replace("/", "_").replace(
+            ":", "_"
+        )
+        log_filename = log_filename.replace(
+            "{api_caller_model}", api_caller_model_sanitized
+        )
+
+    if config.api_caller_input_file:
+        api_caller_input_base = Path(config.api_caller_input_file).stem
+        log_filename = log_filename.replace(
+            "{api_caller_input_file}", api_caller_input_base
+        )
+
+    if (
+        config.api_caller_output_file
+        and config.api_caller_model
+        and config.api_caller_input_file
+    ):
+        api_caller_input_base = Path(config.api_caller_input_file).stem
+        api_caller_model_sanitized = config.api_caller_model.replace("/", "_").replace(
+            ":", "_"
+        )
+        api_caller_output_computed = config.api_caller_output_file.replace(
+            "{input_file}", api_caller_input_base
+        ).replace("{model}", api_caller_model_sanitized)
+        # Remove .json extension for base name
+        api_caller_output_computed = Path(api_caller_output_computed).stem
+        log_filename = log_filename.replace(
+            "{api_caller_output_file}", api_caller_output_computed
+        )
+
+    # Ensure .log extension
+    if not log_filename.endswith(".log"):
+        log_filename += ".log"
+
+    return str(Path(config.log_dir) / log_filename)

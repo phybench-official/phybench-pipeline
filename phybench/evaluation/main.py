@@ -9,7 +9,11 @@ from typing import Any, Final
 
 from tabulate import tabulate
 
-from .evaluation_config import EvaluationConfig, load_evaluation_config
+from .evaluation_config import (
+    EvaluationConfig,
+    get_log_file_path,
+    load_evaluation_config,
+)
 from .expression_distance import EED
 
 __all__: Final[list[str]] = [
@@ -416,7 +420,9 @@ def parse_args(config: EvaluationConfig) -> argparse.Namespace:
         default=config.num_processes,
         help="Number of processes to use (0 = auto-detect)",
     )
-    parser.add_argument("--log-file", default=config.log_file, help="Log file path")
+    parser.add_argument(
+        "--log-file", default=get_log_file_path(config), help="Log file path"
+    )
 
     return parser.parse_args()
 
