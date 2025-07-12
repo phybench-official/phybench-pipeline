@@ -47,6 +47,10 @@ def read_problems(filename: str) -> list[dict[str, Any]]:
         print(f"Error: File '{filename}' is not a valid JSON file.")
         return []
 
+    if not isinstance(data, list):
+        print(f"Error: File '{filename}' should contain a list of problems.")
+        return []
+
     return data
 
 

@@ -387,7 +387,7 @@ def parse_args(config: ApiConfig) -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_existing_solutions(output_file: Path) -> dict[str, set]:
+def check_existing_solutions(output_file: Path) -> dict[str, set[str]]:
     """
     Checks existing solutions in the output file and returns a dictionary
     mapping model names to sets of completed task keys.

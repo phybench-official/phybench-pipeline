@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from latex2sympy2_extended import latex2sympy  # type: ignore
-from latex2sympy2_extended.latex2sympy2 import ConversionConfig  # type: ignore
-from latex2sympy2_extended.math_normalization import NormalizationConfig  # type: ignore
+from latex2sympy2_extended import latex2sympy
+from latex2sympy2_extended.latex2sympy2 import ConversionConfig
+from latex2sympy2_extended.math_normalization import NormalizationConfig
 
 
 def brackets_balanced(s: str) -> bool:
@@ -601,5 +601,5 @@ def master_convert(s: str) -> Any:
         preprocessed_stage2,
         normalization_config=MyNormalization(),
         conversion_config=MyConfig(),
-    )  # type: ignore
+    )
     return Sym

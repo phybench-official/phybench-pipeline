@@ -161,4 +161,4 @@ def ext_distance(
         for y in tree_B.keyroots:
             treedist(x, y)
 
-    return treedists[-1][-1]
+    return float(treedists[-1][-1])

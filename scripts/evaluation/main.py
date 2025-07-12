@@ -12,6 +12,8 @@ from tabulate import tabulate
 from .evaluation_config import EvaluationConfig, load_evaluation_config
 from .expression_distance import EED
 
+__all__ = ["main", "main_cli", "load_evaluation_config", "EvaluationConfig"]
+
 progress = 0
 
 

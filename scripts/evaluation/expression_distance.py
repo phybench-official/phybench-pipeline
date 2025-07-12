@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import threading
-from typing import Any
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 import sympy
 from sympy import (
@@ -27,9 +28,12 @@ from sympy import (
     pi as Pi,
 )
 
+from .latex_processor import master_convert
+from .tree_distance import ext_distance
+
+F = TypeVar("F", bound=Callable[..., Any])
+
 NegativeInfinity = -sympy.oo
-from .latex_processor import master_convert  # noqa: E402
-from .tree_distance import ext_distance  # noqa: E402
 
 """
 Guide:
@@ -140,10 +144,10 @@ class TimeoutError(Exception):
     pass
 
 
-def with_timeout(timeout_seconds: float) -> Any:
+def with_timeout(timeout_seconds: float) -> Callable[[F], F]:
     """Windows-compatible timeout decorator using threading"""
 
-    def decorator(func: Any) -> Any:
+    def decorator(func: F) -> F:
         def wrapper(*args: Any, **kwargs: Any) -> Any:
             result: list[Any] = []
             exception: list[Exception] = []
@@ -169,7 +173,7 @@ def with_timeout(timeout_seconds: float) -> Any:
 
             return result[0] if result else None
 
-        return wrapper
+        return wrapper  # type: ignore
 
     return decorator
 
@@ -193,9 +197,10 @@ def time_simplify(expr: Any) -> Any:
 def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
     @with_timeout(10)
     def _equals(expr1: Any, expr2: Any) -> bool:
-        return expr1.equals(expr2)
+        return bool(expr1.equals(expr2))
 
-    return _equals(expr1, expr2)
+    result = _equals(expr1, expr2)
+    return bool(result) if result is not None else False
 
 
 def time_equal(expr1: Any, expr2: Any) -> bool:
