@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+from typing import Final
 
 from expression_distance import master_convert, sympy_to_tree
 from latex_processor import *  # noqa: F403, F401
 
 # 读取 Excel 文件（默认读取第一个工作表）
-file_path = "./solutions/claude-sonnet-4-0514.json"
+file_path: Final[str] = "./data/model_solutions/test_gpt-4o.json"
 with open(file_path, encoding="utf-8") as file:
     data = json.load(file)
 

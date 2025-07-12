@@ -1,7 +1,8 @@
 import configparser
 from pathlib import Path
+from typing import Final
 
-CONFIG_FILE_NAME = "config.ini"
+CONFIG_FILE_NAME: Final[str] = "config.ini"
 
 
 class ApiConfig:

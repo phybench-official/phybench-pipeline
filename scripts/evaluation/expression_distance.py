@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, Final, TypeVar, overload
 
 import sympy
 from sympy import (
@@ -33,7 +33,7 @@ from .tree_distance import ext_distance
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-NegativeInfinity = -sympy.oo
+NegativeInfinity: Final[sympy.Basic] = -sympy.oo
 
 """
 Guide:
@@ -53,19 +53,34 @@ Operators: basic binary operations including addition, multiplication, and expon
 """
 
 # The costs can be modified if you think their values are different
-insert_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-delete_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
-update_cost: dict[str, int] = {"number": 1, "symbol": 1, "operator": 1, "function": 1}
+insert_cost: Final[dict[str, int]] = {
+    "number": 1,
+    "symbol": 1,
+    "operator": 1,
+    "function": 1,
+}
+delete_cost: Final[dict[str, int]] = {
+    "number": 1,
+    "symbol": 1,
+    "operator": 1,
+    "function": 1,
+}
+update_cost: Final[dict[str, int]] = {
+    "number": 1,
+    "symbol": 1,
+    "operator": 1,
+    "function": 1,
+}
 
-change_type_cost: int = (
+change_type_cost: Final[int] = (
     1  # the cost of an update between different types, can be set to higher
 )
 
-bar_size = 5  # the minimum size of triggering cluster discount
-discount_slope = 0.6
+bar_size: Final[int] = 5  # the minimum size of triggering cluster discount
+discount_slope: Final[float] = 0.6
 
-simplify_time_limit = 15
-equals_time_limit = 10
+simplify_time_limit: Final[int] = 15
+equals_time_limit: Final[int] = 10
 
 
 def update_func(x: TreeNode, y: TreeNode) -> float:
@@ -266,6 +281,17 @@ def sympy_to_tree(expr: Any) -> TreeNode:
 
 
 class TreeNode:
+    @overload
+    def __init__(self, label: str) -> None: ...
+
+    @overload
+    def __init__(self, label: str, children: list[TreeNode]) -> None: ...
+
+    @overload
+    def __init__(
+        self, label: str, children: list[TreeNode], node_type: str
+    ) -> None: ...
+
     def __init__(
         self,
         label: str,

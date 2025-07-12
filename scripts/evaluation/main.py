@@ -5,14 +5,19 @@ import json
 import multiprocessing
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from tabulate import tabulate
 
 from .evaluation_config import EvaluationConfig, load_evaluation_config
 from .expression_distance import EED
 
-__all__ = ["main", "main_cli", "load_evaluation_config", "EvaluationConfig"]
+__all__: Final[list[str]] = [
+    "main",
+    "main_cli",
+    "load_evaluation_config",
+    "EvaluationConfig",
+]
 
 progress = 0
 
