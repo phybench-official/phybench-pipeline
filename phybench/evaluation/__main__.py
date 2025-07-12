@@ -8,14 +8,13 @@ import sys
 import warnings
 from pathlib import Path
 
-from .evaluation_config import get_log_file_path
 from .main import (
-    expand_template_placeholders,
-    get_evaluation_output_file,
-    get_file_path_with_normalization,
     load_evaluation_config,
     main,
     main_cli,
+    resolve_file_path,
+    resolve_log_file_path,
+    resolve_output_file_path,
 )
 
 # Suppress the frozen runpy warning that occurs when running as module
@@ -55,56 +54,69 @@ def main_entry() -> None:
                     "Scoring slope (scoring_slope) must be specified in config.ini"
                 )
 
-            # Build file paths with template expansion (same logic as parse_args)
-            gt_file_expanded = expand_template_placeholders(
+            # Use consistent path resolution logic as CLI
+            gt_file_path = resolve_file_path(
+                None,  # no full path override
+                config.gt_dir,
                 config.gt_file,
-                config.api_caller_model or "",
-                config.api_caller_input_file or "",
-                config.api_caller_output_file or "",
-            )
-            gt_file_path = get_file_path_with_normalization(
-                config.gt_dir, gt_file_expanded
+                config,
+                "ground_truth.json",
             )
 
-            model_answers_file_expanded = expand_template_placeholders(
+            model_answers_file_path = resolve_file_path(
+                None,  # no full path override
+                config.model_answers_dir,
                 config.model_answers_file,
-                config.api_caller_model or "",
-                config.api_caller_input_file or "",
-                config.api_caller_output_file or "",
-            )
-            model_answers_file_path = get_file_path_with_normalization(
-                config.model_answers_dir, model_answers_file_expanded
+                config,
+                "model_answers.json",
             )
 
-            # Generate output file path using template
-            output_dir_path = Path(config.output_dir)
-            output_dir_path.mkdir(parents=True, exist_ok=True)
-
-            output_file_path = get_evaluation_output_file(
-                output_dir_path,
-                gt_file_expanded,
-                model_answers_file_expanded,
+            output_file_path = resolve_output_file_path(
+                None,  # no full path override
+                config.output_dir,
                 config.output_file,
-                api_caller_model=config.api_caller_model or "",
-                api_caller_input_file=config.api_caller_input_file or "",
-                api_caller_output_file=config.api_caller_output_file or "",
+                Path(gt_file_path).name,
+                Path(model_answers_file_path).name,
+                config,
             )
+
+            log_file_path = resolve_log_file_path(
+                None,  # no full path override
+                config.log_dir,
+                config.log_file,
+                config,
+            )
+
+            # Validate required inputs
+            if not Path(gt_file_path).exists():
+                print(f"Error: Ground truth file not found: {gt_file_path}")
+                print("Please check your configuration or create the required files.")
+                return
+
+            if not Path(model_answers_file_path).exists():
+                print(f"Error: Model answers file not found: {model_answers_file_path}")
+                print("Please check your configuration or create the required files.")
+                return
+
+            # Create output and log directories if needed
+            output_file_path.parent.mkdir(parents=True, exist_ok=True)
+            Path(log_file_path).parent.mkdir(parents=True, exist_ok=True)
 
             scoring_params = [config.initial_score, config.scoring_slope]
-            log_file = get_log_file_path(config)
 
+            print("🎯 Starting evaluation process:")
             print(f"  - Ground truth file: {gt_file_path}")
             print(f"  - Model answers file: {model_answers_file_path}")
             print(f"  - Output file: {output_file_path}")
+            print(f"  - Log file: {log_file_path}")
             print(f"  - Scoring parameters: {scoring_params}")
-            print(f"  - Log file: {log_file}")
 
             main(
                 gt_file_path,
                 model_answers_file_path,
                 str(output_file_path),
                 scoring_params,
-                log_file,
+                log_file_path,
             )
         except (FileNotFoundError, ValueError) as e:
             print(f"Configuration error: {e}")
