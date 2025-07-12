@@ -237,11 +237,11 @@ def expand_log_template_placeholders(
 
 
 def process_single_problem(data: dict[str, Any]) -> list[Any]:
+    logger = get_logger(__name__)
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
     problem_id = data["id"]
-    log_file_path = data.get("log_file_path", "logging.txt")
 
     scoring_pars = data["scoring_pars"]
 
@@ -252,10 +252,9 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
     )
     t1 = time.time()
 
-    with open(log_file_path, "a", encoding="utf-8") as f:
-        f.write(
-            f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s\n"
-        )
+    logger.info(
+        f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s\n"
+    )
 
     return [model_name, score, problem_id, rel_distance, treesize, distance_num]
 
@@ -665,8 +664,10 @@ def main_cli() -> None:
 
     setup_logging(
         log_file=log_file_path,
-        log_level="DEBUG" if hasattr(args, "debug") and args.debug else "INFO",
-        console_level="INFO",
+        log_level="DEBUG"
+        if hasattr(args, "debug") and args.debug
+        else (config.file_level or "INFO"),
+        console_level=config.console_level or "INFO",
     )
 
     logger = get_logger(__name__)

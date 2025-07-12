@@ -546,8 +546,10 @@ def main() -> None:
 
     # Setup logging early
     setup_logging(
-        log_level="DEBUG" if args.model and "debug" in args.model.lower() else "INFO",
-        console_level="INFO",  # Keep console less verbose
+        log_level="DEBUG"
+        if args.model and "debug" in args.model.lower()
+        else (APP_CONFIG.file_level or "INFO"),
+        console_level=APP_CONFIG.console_level or "INFO",
     )
 
     # Handle input file path with normalization

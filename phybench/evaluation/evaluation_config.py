@@ -15,8 +15,13 @@ class EvaluationConfig:
         self.model_answers_file: str | None = None
         self.output_dir: str | None = None
         self.output_file: str | None = None
+
+        # Logging configuration
         self.log_dir: str | None = None
         self.log_file: str | None = None
+        self.console_level: str | None = None
+        self.file_level: str | None = None
+
         # Cross-module placeholders
         self.api_caller_model: str | None = None
         self.api_caller_input_file: str | None = None
@@ -48,8 +53,13 @@ def load_evaluation_config(
         config.model_answers_file = parser["evaluation.paths"].get("model_answers_file")
         config.output_dir = parser["evaluation.paths"].get("output_dir")
         config.output_file = parser["evaluation.paths"].get("output_file")
-        config.log_dir = parser["evaluation.paths"].get("log_dir")
-        config.log_file = parser["evaluation.paths"].get("log_file")
+
+    # Load logging configuration from centralized [logging] section
+    if "logging" in parser:
+        config.log_dir = parser["logging"].get("log_dir")
+        config.log_file = parser["logging"].get("log_file")
+        config.console_level = parser["logging"].get("console_level")
+        config.file_level = parser["logging"].get("file_level")
 
     # Load cross-module placeholders from API caller config
     if "api_caller.model" in parser:

@@ -26,6 +26,12 @@ Use standard LaTeX conventions rigorously."""
         self.output_dir: str | None = None
         self.output_file: str | None = None
 
+        # Logging configuration
+        self.log_dir: str | None = None
+        self.log_file: str | None = None
+        self.console_level: str | None = None
+        self.file_level: str | None = None
+
         # Computed properties for cross-module access
         self.computed_output_filename: str | None = None
         self.num_consumers: int | None = None
@@ -76,5 +82,11 @@ def load_api_config(config_file_path: Path = Path(CONFIG_FILE_NAME)) -> ApiConfi
         config.max_task_queue_size = parser["api_caller.execution"].getint(
             "max_task_queue_size"
         )
+
+    if "logging" in parser:
+        config.log_dir = parser["logging"].get("log_dir")
+        config.log_file = parser["logging"].get("log_file")
+        config.console_level = parser["logging"].get("console_level")
+        config.file_level = parser["logging"].get("file_level")
 
     return config

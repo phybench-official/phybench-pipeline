@@ -1,6 +1,24 @@
 ; Sample configuration file
 ; Copy this to config.ini and update with your actual values
 
+; -------------------------------- logging -------------------------------- ;
+[logging]
+# Directory to save log files
+log_dir = logs
+# Log filename template
+# Available placeholders:
+#   {gt_file}                - Ground truth filename without extension
+#   {model_answers_file}     - Model answers filename without extension
+#   {api_caller_input_file}  - Input filename from API caller
+#   {api_caller_model}       - Model name from API caller
+#   {api_caller_output_file} - Output filename from API caller
+log_file = {api_caller_input_file}
+# Log level for console output (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+console_level = INFO
+# Log level for file output (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+file_level = DEBUG
+
+
 ; -------------------------------- api_caller -------------------------------- ;
 [api_caller.api]
 # Base URL for the API endpoint (OpenAI-compatible API server)
@@ -65,11 +83,6 @@ output_dir = data/evaluation_results
 #   {api_caller_model}       - Model name from API caller
 #   {api_caller_output_file} - Output filename from API caller
 output_file = {api_caller_input_file}
-# Directory to save log files
-log_dir = logs
-# Log filename template
-# Available placeholders: Same as output_file above
-log_file = {api_caller_input_file}
 
 [evaluation.scoring]
 # Base score assigned before distance penalty (higher = more lenient, range: 0-100)

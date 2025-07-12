@@ -41,7 +41,9 @@ def main_entry() -> None:
                 None, config.log_dir, config.log_file, config
             )
             setup_logging(
-                log_file=log_file_path, log_level="INFO", console_level="INFO"
+                log_file=log_file_path,
+                log_level=config.file_level or "DEBUG",
+                console_level=config.console_level or "INFO",
             )
 
             logger.info("Running evaluation with config parameters...")
