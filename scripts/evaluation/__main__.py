@@ -9,7 +9,7 @@ import sys
 from .main import load_evaluation_config, main, main_cli
 
 
-def main_entry():
+def main_entry() -> None:
     """Main entry point for the grading package."""
     if len(sys.argv) > 1:
         main_cli()

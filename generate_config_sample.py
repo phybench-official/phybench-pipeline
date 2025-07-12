@@ -6,7 +6,7 @@ Generate config.ini.sample from config.ini by removing sensitive information.
 from pathlib import Path
 
 
-def generate_config_sample():
+def generate_config_sample() -> bool:
     """Generate config.ini.sample from config.ini with API key removed."""
     config_path = Path("config.ini")
     sample_path = Path("config.ini.sample")

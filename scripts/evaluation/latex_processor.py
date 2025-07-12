@@ -172,7 +172,7 @@ def convert_latex_fractions(latex_str: str) -> str:
     """
     pattern = r"\\frac((?:\\[a-zA-Z]+|\d|[a-zA-Z]|{[^{}]*}))((?:\\[a-zA-Z]+|\d|[a-zA-Z]|{[^{}]*}))"
 
-    def replacer(match):
+    def replacer(match: Any) -> str:
         numerator, denominator = match.group(1), match.group(2)
         wrap_num = (
             f"{{{numerator}}}"

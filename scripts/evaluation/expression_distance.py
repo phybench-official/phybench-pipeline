@@ -140,15 +140,15 @@ class TimeoutError(Exception):
     pass
 
 
-def with_timeout(timeout_seconds):
+def with_timeout(timeout_seconds: float) -> Any:
     """Windows-compatible timeout decorator using threading"""
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: Any) -> Any:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             result: list[Any] = []
             exception: list[Exception] = []
 
-            def target():
+            def target() -> None:
                 try:
                     result.append(func(*args, **kwargs))
                 except Exception as e:
@@ -176,7 +176,7 @@ def with_timeout(timeout_seconds):
 
 def simplify_with_timeout(expr: Any) -> Any:
     @with_timeout(30)
-    def _simplify(expr):
+    def _simplify(expr: Any) -> Any:
         return simplify(expr)
 
     return _simplify(expr)
@@ -192,7 +192,7 @@ def time_simplify(expr: Any) -> Any:
 
 def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
     @with_timeout(10)
-    def _equals(expr1, expr2):
+    def _equals(expr1: Any, expr2: Any) -> bool:
         return expr1.equals(expr2)
 
     return _equals(expr1, expr2)

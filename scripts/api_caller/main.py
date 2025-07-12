@@ -208,7 +208,7 @@ def run_consumer_loop(
     It creates and closes an API client for this consumer's lifecycle.
     """
 
-    async def actual_processing_loop():
+    async def actual_processing_loop() -> None:
         client = create_async_client(api_key, base_url)
         try:
             await consumer_task_processor(client, chat_timeout, max_retries)
@@ -398,7 +398,7 @@ def check_existing_solutions(output_file: Path) -> dict[str, set]:
     Returns:
         Dictionary with model names as keys and sets of completed task keys as values
     """
-    completed_tasks = {}
+    completed_tasks: dict[str, set[str]] = {}
 
     if not output_file.exists():
         return completed_tasks

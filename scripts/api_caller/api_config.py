@@ -7,7 +7,7 @@ CONFIG_FILE_NAME = "config.ini"
 class ApiConfig:
     """Holds application configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url: str | None = None
         self.api_key: str | None = None
 

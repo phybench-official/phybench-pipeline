@@ -200,7 +200,7 @@ pre-commit run --all-files
 Pre-commit hooks automatically run on each commit and include:
 - **Ruff Linter**: Checks code style, imports, and common issues
 - **Ruff Formatter**: Ensures consistent code formatting
-- **mypy**: Basic type checking (configured for existing codebase with lenient settings)
+- **mypy**: Static type checking
 
 Configuration files:
 - `.pre-commit-config.yaml`: Pre-commit hook configuration

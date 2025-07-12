@@ -7,7 +7,7 @@ CONFIG_FILE_NAME = "config.ini"
 class EvaluationConfig:
     """Holds grading configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.gt_file: str | None = None
         self.model_answers_file: str | None = None
         self.output_file: str | None = None
