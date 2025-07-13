@@ -69,11 +69,12 @@ def evaluate(
     with open(gt_file, encoding="utf-8") as f:
         gt = json.load(f)
 
+    # Here on we will start updating gt and finally output it
     gt_dict = {}
     for data in gt:
         if "model" in data:
             del data["model"]
-        data["model_name"] = []
+        data["models"] = []
         data["model_score"] = []
         data["model_answer"] = []
         data["model_distance"] = []
@@ -92,8 +93,8 @@ def evaluate(
 
     work_list = []
 
-    for answers in gt[0:]:
-        if answers["id"] == 108:
+    for answers in gt[:]:
+        if answers["id"] == 108:  # wrong problem, skip it
             continue
         for model in model_list:
             id_number = answers["id"]
@@ -148,7 +149,7 @@ def evaluate(
             tree_size, gt_dict[problem_id]["answer_size"]
         )
         gt_dict[problem_id]["model_distance"].append(distance_number)
-        gt_dict[problem_id]["model_name"].append(model)
+        gt_dict[problem_id]["models"].append(model)
         gt_dict[problem_id]["model_score"].append(score_i)
         gt_dict[problem_id]["model_answer"].append(
             model_answers_dict[(problem_id, model)]["model_answer"]
@@ -158,12 +159,13 @@ def evaluate(
 
     for data in gt:
         score_list = data["model_score"]
-        if score_list:
-            avg_score = sum(score_list) / len(score_list)
-            score_2 = 0
-            for score in score_list:
-                score_2 += (score - avg_score) ** 2
-            data["model_score_var"] = score_2 / len(score_list)
+        if not score_list or len(score_list) <= 1:
+            continue  # hide the variance if only one model
+        avg_score = sum(score_list) / len(score_list)
+        score_2 = 0
+        for score in score_list:
+            score_2 += (score - avg_score) ** 2
+        data["model_score_var"] = score_2 / len(score_list)
 
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
