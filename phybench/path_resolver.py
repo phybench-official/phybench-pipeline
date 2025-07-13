@@ -49,6 +49,10 @@ class PathResolver:
     def _normalize_filename(self, filename: str, extension: str) -> str:
         """Ensures the filename ends with the specified extension."""
         if not filename.endswith(extension):
+            if filename.endswith(".json"):
+                filename = filename[:-5]  # Remove .json
+            elif filename.endswith(".log"):
+                filename = filename[:-4]  # Remove .log
             filename += extension
         return filename
 
