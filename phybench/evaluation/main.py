@@ -41,7 +41,7 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
 
     t0 = time.time()
 
-    score, rel_distance, treesize, distance_num = EED(
+    score, relative_distance, treesize, distance_num = EED(
         right_ans, ai_ans, scoring_parameters=scoring_pars, debug_mode=False
     )
     t1 = time.time()
@@ -50,12 +50,12 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
         f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s\n"
     )
 
-    return [model_name, score, problem_id, rel_distance, treesize, distance_num]
+    return [model_name, score, problem_id, relative_distance, treesize, distance_num]
 
 
 def evaluate(
     gt_file: str,
-    gen_file: str,
+    model_answers_file: str,
     output_file: str,
     scoring_parameters: list[int],
     log_file: str = "logs/evaluation.log",
@@ -63,14 +63,16 @@ def evaluate(
     if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
 
-    with open(gen_file, encoding="utf-8") as f:
-        final_answer = json.load(f)
+    with open(model_answers_file, encoding="utf-8") as f:
+        model_answers = json.load(f)
 
     with open(gt_file, encoding="utf-8") as f:
-        approved_problems = json.load(f)
+        gt = json.load(f)
 
     approved_problems_dict = {}
-    for data in approved_problems:
+    for data in gt:
+        if "model" in data:
+            del data["model"]
         data["model_name"] = []
         data["model_score"] = []
         data["model_answer"] = []
@@ -80,24 +82,24 @@ def evaluate(
         approved_problems_dict[data["id"]] = data
 
     model_list = []
-    final_answer_dict = {}
-    for data in final_answer:
+    model_answers_dict = {}
+    for data in model_answers:
         name = data["model"]
         if name not in model_list:
             model_list.append(name)
 
-        final_answer_dict[(data["id"], data["model"])] = data
+        model_answers_dict[(data["id"], data["model"])] = data
 
     work_list = []
 
-    for answers in approved_problems[0:]:
+    for answers in gt[0:]:
         if answers["id"] == 108:
             continue
         for model in model_list:
             id_number = answers["id"]
             query_answer = (id_number, model)
-            if query_answer in final_answer_dict:
-                model_answer = final_answer_dict[(id_number, model)]["model_answer"]
+            if query_answer in model_answers_dict:
+                model_answer = model_answers_dict[(id_number, model)]["model_answer"]
                 right_answer = approved_problems_dict[id_number]["answer"]
 
                 work_list.append(
@@ -149,12 +151,12 @@ def evaluate(
         approved_problems_dict[problem_id]["model_name"].append(model)
         approved_problems_dict[problem_id]["model_score"].append(score_i)
         approved_problems_dict[problem_id]["model_answer"].append(
-            final_answer_dict[(problem_id, model)]["model_answer"]
+            model_answers_dict[(problem_id, model)]["model_answer"]
         )
 
         dist_data.append(rel_dist)
 
-    for data in approved_problems:
+    for data in gt:
         score_list = data["model_score"]
         if score_list:
             avg_score = sum(score_list) / len(score_list)
@@ -167,7 +169,7 @@ def evaluate(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(approved_problems, f, ensure_ascii=False, indent=4)
+        json.dump(gt, f, ensure_ascii=False, indent=4)
 
     output_table = []
     for model in model_scores:

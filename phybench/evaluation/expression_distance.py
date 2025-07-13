@@ -484,8 +484,8 @@ def EED(
     tree_size = calc_tree_size(tree_answer)
     distance_number = distance
 
-    rel_distance = distance / tree_size
+    relative_distance = distance / tree_size
 
     score = score_calc(distance_number, tree_size, scoring_parameters)
 
-    return score, rel_distance, tree_size, distance_number
+    return score, relative_distance, tree_size, distance_number
