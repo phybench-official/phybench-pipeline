@@ -11,6 +11,7 @@ from tabulate import tabulate
 
 from phybench.config_loader import get_settings
 from phybench.logging_config import get_logger, setup_logging
+from phybench.path_resolver import PathResolver
 
 from .expression_distance import EED
 
@@ -28,31 +29,8 @@ processing_lis: list[Any] = []
 processed_list: list[Any] = []
 
 
-def initialize_logging(log_file_path: str) -> None:
-    """Initialize logging with configurable file path."""
-    log_path = Path(log_file_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(log_file_path, "w", encoding="utf-8") as f:
-        f.write("")
-
-
-def normalize_json_filename(filename: str) -> str:
-    """
-    Normalizes a filename to ensure it has a .json extension.
-
-    Args:
-        filename: The input filename (with or without .json extension)
-
-    Returns:
-        The filename with .json extension ensured
-    """
-    if not filename.endswith(".json"):
-        return f"{filename}.json"
-    return filename
-
-
 def process_single_problem(data: dict[str, Any]) -> list[Any]:
+    global progress, processing_lis, processed_list
     logger = get_logger(__name__)
     model_name = data["model"]
     ai_ans = data["model_answer"]
@@ -84,9 +62,6 @@ def evaluate(
 ) -> str:
     if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
-
-    # Initialize logging with configurable path
-    initialize_logging(log_file)
 
     with open(gen_file, encoding="utf-8") as f:
         final_answer = json.load(f)
@@ -211,7 +186,6 @@ def evaluate(
 
 
 def main() -> None:
-    """Command line interface entry point."""
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "--config-file",
@@ -223,9 +197,9 @@ def main() -> None:
     try:
         settings = get_settings(args.config_file)
     except FileNotFoundError as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         if args.config_file == "config.toml":
-            print(
+            logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
             )
         return
@@ -293,25 +267,39 @@ def main() -> None:
         default=settings.evaluation.execution.num_processes,
         help="Number of processes to use (0 = auto-detect)",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        help="Model name to evaluate (just for filename template resolution)",
+    )
+    parser.add_argument(
+        "--input-file",
+        type=str,
+        help="Input file in api caller (just for filename template resolution)",
+    )
 
     final_args = parser.parse_args(remaining_argv)
 
-    log_file_path = Path(final_args.log_dir) / final_args.log_file
+    if not final_args.model:
+        logger.error("No model specified. Use --model")
+        return
+
+    if not final_args.input_file:
+        logger.error("No input file specified. Use --input-file")
+        return
+
+    resolver = PathResolver(settings, final_args.model, final_args.input_file)
 
     setup_logging(
-        log_file=log_file_path,
+        log_file=resolver.get_log_file(),
         log_level=settings.logging.file_level,
         console_level=settings.logging.console_level,
     )
 
-    logger = get_logger(__name__)
-
-    gt_file_path = Path(final_args.gt_dir) / final_args.gt_file
-    model_answers_file_path = (
-        Path(final_args.model_answers_dir) / final_args.model_answers_file
-    )
-    output_file_path = Path(final_args.output_dir) / final_args.output_file
-    log_file_path = Path(final_args.log_dir) / final_args.log_file
+    gt_file_path = resolver.get_evaluation_gt_file()
+    model_answers_file_path = resolver.get_evaluation_model_answers_file()
+    output_file_path = resolver.get_evaluation_output_file()
+    log_file_path = resolver.get_log_file()
 
     scoring_params = [final_args.initial_score, final_args.scoring_slope]
 

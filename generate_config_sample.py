@@ -34,7 +34,7 @@ def generate_config_sample() -> bool:
         # Process each line to replace only the API key value
         for line in lines:
             if line.strip().startswith("api_key ="):
-                f.write("# api_key = your_api_key_here\n")
+                f.write('api_key = "your_api_key_here"\n')
             else:
                 f.write(line)
 

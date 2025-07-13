@@ -1,4 +1,8 @@
 # PhyBench Pipeline Configuration
+# Copy this file to 'config.toml' and update with your actual values
+# You may also use --config-file to specify other config file paths.
+
+# ------------------------------- providers ------------------------------- #
 
 # Define a list of API providers. The api_caller will automatically select the
 # correct provider based on the model name you pass via the --model argument.
@@ -8,56 +12,107 @@ name = "openai"
 base_url = "https://api.openai.com/v1"
 # It's recommended to set the API key as an environment variable, e.g.,
 # export PROVIDER_OPENAI_API_KEY="your_sk-..."
-api_key = "your_openai_api_key"
+api_key = "your_api_key_here"
 # A list of models that this provider configuration applies to.
 models = ["gpt-4o", "gpt-3.5-turbo"]
-
-[[providers]]
-name = "anthropic"
-base_url = "https://api.anthropic.com/v1"
-api_key = "your_anthropic_api_key"
-models = ["claude-3-opus-20240229", "claude-3-sonnet-20240229"]
 
 [[providers]]
 name = "local_ollama"
 base_url = "http://localhost:11434/v1"
 # For local models that don't require a key, provide a non-empty string.
-api_key = "ollama"
+api_key = "your_api_key_here"
 models = ["llama3", "phi3"]
 
-# --- Default settings for the api_caller and evaluation modules ---
-# These can still be overridden by command-line arguments.
 
-[logging]
-log_dir = "logs"
-log_file = "{api_caller_input_file}"
-console_level = "INFO"
-file_level = "DEBUG"
+# -------------------------------- api_caller -------------------------------- #
+[api_caller.model]
+# Model to use if not specified by --model argument
+model = "gpt-4o"
+# Comma-separated list of OpenAI 'o' series model keywords (for 'reasoning_effort')
+openai_o_model_keywords = [
+    "o3-mini",
+    "o3 (high)",
+    "o3-high",
+    "o3-mini (high)",
+    "o4-mini",
+    "o4-mini (high)",
+    "o1",
+    "o1-preview-all",
+]
 
 [api_caller.paths]
+# Directory containing input JSON files
 input_dir = "data/ground_truth"
+# Input filename template (without path, with or without .json extension)
 input_file = "test.json"
+# Directory to save output JSON files (individual model solution files)
 output_dir = "data/model_solutions"
+# Output filename template (without path, with or without .json extension)
+# Available placeholders:
+#   {input_file} - Input filename without extension (e.g., "test")
+#   {model}      - Model name with special chars sanitized (e.g., "gpt-4o")
 output_file = "{input_file}_{model}"
 
 [api_caller.execution]
+# Number of consumer threads/tasks
 num_consumers = 10
+# API call timeout in seconds
 chat_timeout = 1200
+# Number of times to process each problem
 repeat_count = 1
+# Max retries for a failed API call for a single task
 max_retries = 5
+# Max items in the task_queue
 max_task_queue_size = 100
 
+
+# -------------------------------- evaluation -------------------------------- #
 [evaluation.paths]
+# Directory containing ground truth files
 gt_dir = "data/ground_truth"
-gt_file = "{api_caller_input_file}"
+# Ground truth filename template (without path, with or without .json extension)
+# Available placeholders:
+#   {api_caller_input_file}  - Input filename from API caller (e.g., "test")
+#   {api_caller_model}       - Model name from API caller (e.g., "gpt-4o")
+#   {api_caller_output_file} - Output filename from API caller (e.g., "test_gpt-4o")
+gt_file = "test.json"
+# Directory containing model solution files
 model_answers_dir = "data/model_solutions"
-model_answers_file = "{api_caller_output_file}"
+# Model answers filename template (without path, with or without .json extension)
+# Available placeholders: Same as gt_file above
+model_answers_file = "test_gpt-4o.json"
+# Directory to save evaluation results
 output_dir = "data/evaluation_results"
-output_file = "{api_caller_input_file}"
+# Output filename template (without path, with or without .json extension)
+# Available placeholders:
+#   {gt_file}                - Ground truth filename without extension
+#   {model_answers_file}     - Model answers filename without extension
+#   {api_caller_input_file}  - Input filename from API caller
+#   {api_caller_model}       - Model name from API caller
+#   {api_caller_output_file} - Output filename from API caller
+output_file = "test.json"
 
 [evaluation.scoring]
+# Base score assigned before distance penalty (higher = more lenient, range: 0-100)
 initial_score = 60
+# Scaling factor for expression distance penalty (higher = steeper penalty curve)
 scoring_slope = 100
 
 [evaluation.execution]
-num_processes = 0 # 0 for auto-detect
+# Number of CPU cores to use (0 = auto-detect)
+num_processes = 0
+
+
+# -------------------------------- logging -------------------------------- #
+[logging]
+# Directory to save log files
+log_dir = "logs"
+# Log filename template
+# Available placeholders:
+#   {gt_file}                - Ground truth filename without extension
+#   {api_caller_input_file}  - Input filename from API caller
+log_file = "test.json"
+# Log level for console output (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+console_level = "INFO"
+# Log level for file output (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
+file_level = "DEBUG"

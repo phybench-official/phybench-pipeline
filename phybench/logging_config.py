@@ -17,10 +17,8 @@ logger.remove()
 
 def setup_logging(
     log_file: str | Path | None = None,
-    log_level: str = "INFO",
-    enable_console: bool = True,
-    enable_file: bool = True,
-    console_level: str | None = None,
+    log_level: str = "DEBUG",
+    console_level: str = "INFO",
 ) -> None:
     """
     Setup logging configuration for the application.
@@ -41,32 +39,31 @@ def setup_logging(
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Console logging with color and higher level filtering
-    if enable_console:
-        console_log_level = console_level or log_level
-        logger.add(
-            sys.stdout,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level>",
-            level=console_log_level,
-            colorize=True,
-            filter=lambda record: record["level"].no < 40,  # < ERROR level
-        )
+    console_log_level = console_level or log_level
+    logger.add(
+        sys.stdout,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+        "<level>{message}</level>",
+        level=console_log_level,
+        colorize=True,
+        filter=lambda record: record["level"].no < 40,  # < ERROR level
+    )
 
-        # Separate handler for ERROR and CRITICAL to stderr
-        logger.add(
-            sys.stderr,
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
-            "<level>{message}</level>",
-            level="ERROR",
-            colorize=True,
-        )
+    # Separate handler for ERROR and CRITICAL to stderr
+    logger.add(
+        sys.stderr,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+        "<level>{message}</level>",
+        level="ERROR",
+        colorize=True,
+    )
 
     # File logging with rotation, retention, and compression
-    if enable_file:
+    if log_file:
         logger.add(
             log_file,
             format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {process}:{thread} | {name}:{function}:{line} | {message}",
@@ -79,8 +76,8 @@ def setup_logging(
         )
 
     logger.info(f"Logging initialized - Level: {log_level}")
-    if enable_file:
-        logger.info(f"Log file: {log_file.absolute()}")
+    if log_file:
+        logger.info(f"Log file: {Path(log_file).absolute()}")
 
 
 def get_logger(name: str | None = None) -> Any:

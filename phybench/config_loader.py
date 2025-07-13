@@ -1,6 +1,9 @@
 from pathlib import Path
-from phybench.settings import AppSettings
+
 import toml
+
+from phybench.settings import AppSettings
+
 
 def get_settings(config_file: str | Path) -> AppSettings:
     """
@@ -11,5 +14,5 @@ def get_settings(config_file: str | Path) -> AppSettings:
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
     config_data = toml.load(config_path)
-    
+
     return AppSettings.model_validate(config_data)

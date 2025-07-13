@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from phybench.config_loader import get_settings
 from phybench.logging_config import get_logger, setup_logging
+from phybench.path_resolver import PathResolver
 from phybench.settings import ProviderSettings
 
 from .client import (
@@ -35,39 +36,6 @@ def get_provider_for_model(
         if model_name in provider.models:
             return provider
     return None
-
-
-def get_output_file(
-    target_dir_path: Path, model_name: str, input_filename: str, output_template: str
-) -> Path:
-    """
-    Generates the full path for the output JSON file for a given model using a template.
-
-    Args:
-        target_dir_path: The directory where the output file will be saved.
-        model_name: The name of the model, used to create the filename.
-        input_filename: The input filename (with or without .json extension).
-        output_template: The output filename template with {input_file} and {model} placeholders.
-
-    Returns:
-        The absolute path to the output JSON file.
-    """
-    sanitized_model_name = model_name.replace("/", "_").replace(":", "_")
-
-    input_path = Path(input_filename)
-    input_base = input_path.stem
-
-    if input_path.suffix == "":
-        input_base = input_path.name
-
-    output_filename = output_template.replace("{input_file}", input_base).replace(
-        "{model}", sanitized_model_name
-    )
-
-    if not output_filename.endswith(".json"):
-        output_filename += ".json"
-
-    return target_dir_path / output_filename
 
 
 def is_error_solution(solution: dict[str, Any]) -> bool:
@@ -458,9 +426,9 @@ def main() -> None:
     try:
         settings = get_settings(args.config_file)
     except FileNotFoundError as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         if args.config_file == "config.toml":
-            print(
+            logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
             )
         return
@@ -517,12 +485,19 @@ def main() -> None:
 
     final_args = parser.parse_args(remaining_argv)
 
+    if not final_args.model or final_args.model.strip() == "":
+        logger.error("No model specified. Use --model or set model in config.")
+        return
+
+    resolver = PathResolver(settings, final_args.model, final_args.input_file)
+
     setup_logging(
+        log_file=resolver.get_log_file(),
         log_level=settings.logging.file_level,
         console_level=settings.logging.console_level,
     )
 
-    input_file_path = Path(final_args.input_dir) / final_args.input_file
+    input_file_path = resolver.get_api_caller_input_file()
 
     if not final_args.output_dir:
         logger.error(
@@ -559,15 +534,7 @@ def main() -> None:
         logger.error("No problems loaded. Exiting.")
         return
 
-    output_dir_path = Path(final_args.output_dir)
-    output_dir_path.mkdir(parents=True, exist_ok=True)
-
-    input_filename = input_file_path.name
-    output_template = final_args.output_file
-
-    output_file = get_output_file(
-        output_dir_path, final_args.model, input_filename, output_template
-    )
+    output_file = resolver.get_api_caller_output_file()
 
     task_queue = queue.Queue(maxsize=settings.api_caller.execution.max_task_queue_size)
     result_queue = queue.Queue()

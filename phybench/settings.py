@@ -1,4 +1,5 @@
-from pydantic import Field, BaseModel
+from pydantic import BaseModel
+
 
 # --- Provider Settings ---
 class ProviderSettings(BaseModel):
@@ -7,6 +8,7 @@ class ProviderSettings(BaseModel):
     api_key: str
     models: list[str]
 
+
 # --- Logging Settings ---
 class LoggingSettings(BaseModel):
     log_dir: str = "logs"
@@ -14,13 +16,16 @@ class LoggingSettings(BaseModel):
     console_level: str = "INFO"
     file_level: str = "DEBUG"
 
+
 # --- API Caller Settings ---
+
 
 class APICallerPathsSettings(BaseModel):
     input_dir: str = "data/ground_truth"
     input_file: str = "test.json"
     output_dir: str = "data/model_solutions"
     output_file: str = "{input_file}_{model}"
+
 
 class APICallerExecutionSettings(BaseModel):
     num_consumers: int = 10
@@ -29,11 +34,14 @@ class APICallerExecutionSettings(BaseModel):
     max_retries: int = 5
     max_task_queue_size: int = 100
 
+
 class APICallerSettings(BaseModel):
     paths: APICallerPathsSettings
     execution: APICallerExecutionSettings
 
+
 # --- Evaluation Settings ---
+
 
 class EvaluationPathsSettings(BaseModel):
     gt_dir: str = "data/ground_truth"
@@ -43,19 +51,24 @@ class EvaluationPathsSettings(BaseModel):
     output_dir: str = "data/evaluation_results"
     output_file: str = "{api_caller_input_file}"
 
+
 class EvaluationScoringSettings(BaseModel):
     initial_score: int = 60
     scoring_slope: int = 100
 
+
 class EvaluationExecutionSettings(BaseModel):
-    num_processes: int = 0 # 0 for auto-detect
+    num_processes: int = 0
+
 
 class EvaluationSettings(BaseModel):
     paths: EvaluationPathsSettings
     scoring: EvaluationScoringSettings
     execution: EvaluationExecutionSettings
 
+
 # --- Main Settings ---
+
 
 class AppSettings(BaseModel):
     providers: list[ProviderSettings]
