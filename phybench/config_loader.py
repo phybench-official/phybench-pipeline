@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import toml
 
@@ -13,6 +14,6 @@ def get_settings(config_file: str | Path) -> AppSettings:
     if not config_path.is_file():
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-    config_data = toml.load(config_path)
+    config_data: dict[str, Any] = toml.load(config_path)
 
-    return AppSettings.model_validate(config_data)
+    return AppSettings.model_validate(config_data)  # type: ignore

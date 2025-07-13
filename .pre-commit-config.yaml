@@ -9,4 +9,5 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
+        args: [--config-file, mypy.ini]
         additional_dependencies: [types-tabulate]

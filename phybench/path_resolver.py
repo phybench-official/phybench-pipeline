@@ -54,10 +54,12 @@ class PathResolver:
 
     def _resolve_template(self, template: str) -> str:
         """Resolves all known placeholders in a given template string."""
+        gt_file_base = Path(self.evaluation_gt_file_template).stem
         return (
             template.replace("{api_caller_input_file}", self.api_caller_input_file_base)
             .replace("{api_caller_model}", self.sanitized_model_name)
             .replace("{api_caller_output_file}", self.api_caller_output_file_base)
+            .replace("{gt_file}", gt_file_base)
         )
 
     def get_api_caller_input_file(self) -> Path:
