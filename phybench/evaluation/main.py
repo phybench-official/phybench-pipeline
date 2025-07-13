@@ -69,7 +69,7 @@ def evaluate(
     with open(gt_file, encoding="utf-8") as f:
         gt = json.load(f)
 
-    approved_problems_dict = {}
+    gt_dict = {}
     for data in gt:
         if "model" in data:
             del data["model"]
@@ -79,7 +79,7 @@ def evaluate(
         data["model_distance"] = []
         data["model_score_var"] = 0
         data["answer_size"] = 0
-        approved_problems_dict[data["id"]] = data
+        gt_dict[data["id"]] = data
 
     model_list = []
     model_answers_dict = {}
@@ -100,7 +100,7 @@ def evaluate(
             query_answer = (id_number, model)
             if query_answer in model_answers_dict:
                 model_answer = model_answers_dict[(id_number, model)]["model_answer"]
-                right_answer = approved_problems_dict[id_number]["answer"]
+                right_answer = gt_dict[id_number]["answer"]
 
                 work_list.append(
                     {
@@ -144,13 +144,13 @@ def evaluate(
         model_scores[model] += score_i
         model_nums[model] += 1
 
-        approved_problems_dict[problem_id]["answer_size"] = max(
-            tree_size, approved_problems_dict[problem_id]["answer_size"]
+        gt_dict[problem_id]["answer_size"] = max(
+            tree_size, gt_dict[problem_id]["answer_size"]
         )
-        approved_problems_dict[problem_id]["model_distance"].append(distance_number)
-        approved_problems_dict[problem_id]["model_name"].append(model)
-        approved_problems_dict[problem_id]["model_score"].append(score_i)
-        approved_problems_dict[problem_id]["model_answer"].append(
+        gt_dict[problem_id]["model_distance"].append(distance_number)
+        gt_dict[problem_id]["model_name"].append(model)
+        gt_dict[problem_id]["model_score"].append(score_i)
+        gt_dict[problem_id]["model_answer"].append(
             model_answers_dict[(problem_id, model)]["model_answer"]
         )
 
