@@ -12,7 +12,7 @@ PhyBench Pipeline consists of two main components:
 
 - **Parallel Processing**: Multi-threaded API calls and CPU-optimized evaluation
 - **Expression Distance**: Non-binary LaTeX expression comparison using EED metrics
-- **Flexible Configuration**: INI-based config with CLI override support
+- **Flexible Configuration**: TOML-based config with CLI override support
 
 ## Quick Start
 
@@ -63,7 +63,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install aiofiles>=24.1.0 latex2sympy2-extended>=1.10.1 numpy>=2.2.6 openai>=1.83.0 sympy>=1.14.0 tabulate>=0.9.0 timeout-decorator>=0.5.0 tqdm>=4.67.1
+pip install -r requirements.txt
 ```
 
 ### Configuration
@@ -71,21 +71,24 @@ pip install aiofiles>=24.1.0 latex2sympy2-extended>=1.10.1 numpy>=2.2.6 openai>=
 1. Copy and edit the configuration file:
 ```bash
 # Copy the sample configuration
-cp config.ini.sample config.ini
+cp config.toml.sample config.toml
 
-# Edit config.ini with your API key and settings
+# Edit config.toml with your API key and settings
 ```
 
 2. Key configuration sections:
-- `[api_caller.api]`: API endpoint and authentication (base_url, api_key)
+- `[[providers]]`: API provider settings (name, base_url, api_key, models)
 - `[api_caller.model]`: Model settings (model, openai_o_model_keywords)
 - `[api_caller.paths]`: Input/output paths (input_file, output_dir)
 - `[api_caller.execution]`: Processing settings (num_consumers, chat_timeout, repeat_count, max_retries)
 - `[evaluation.paths]`: Ground truth and model answer files (gt_file, model_answers_file, output_file, log_file)
 - `[evaluation.scoring]`: Scoring parameters (initial_score, scoring_slope)
 - `[evaluation.execution]`: Processing settings (num_processes)
+- `[logging]`: Logging settings (log_dir, log_file, console_level, file_level)
 
-## Usage
+### Usage
+
+**Note:** All commands should be run from the root of the project directory. You can either activate the virtual environment first (`source .venv/bin/activate` or `\.venv\Scripts\activate` on Windows) or prefix each command with `uv run`.
 
 ### Generate Model Solutions
 ```bash
@@ -105,6 +108,13 @@ python -m phybench.evaluation
 python -m phybench.evaluation --gt-file data/ground_truth/test.json --model-answers-file data/model_solutions/gpt-4o.json --output-dir data/evaluation_results/custom_results.json --initial-score 60 --scoring-slope 100 --log-file logs/custom_evaluation.log --num-processes 4
 ```
 
+## Testing
+
+```bash
+# Run all tests
+uv run pytest
+```
+
 ## Data Format
 
 ### API Caller Input (Ground Truth)
@@ -114,8 +124,6 @@ python -m phybench.evaluation --gt-file data/ground_truth/test.json --model-answ
     "id": 495,
     "tag": "OPTICS",
     "content": "Physics problem statement with LaTeX equations...",
-    "solution": "Step-by-step solution...",
-    "answer": "\\frac{NZ e^3}{2c\\varepsilon_0 m^2 n} \\cdot \\frac{\\omega^2}{(\\omega_0^2 - \\omega^2)^2}"
   }
 ]
 ```
@@ -169,7 +177,7 @@ Score formula: `max(0, initial_score - scoring_slope × (distance / tree_size))`
 
 ### Requirements
 - Python ≥ 3.13
-- Dependencies: sympy, latex2sympy2-extended, numpy
+- Dependencies: See `pyproject.toml`
 
 ### Development Setup
 
@@ -184,13 +192,13 @@ uv sync
 pre-commit install
 
 # Run linting manually
-uv run ruff check scripts/
+uv run ruff check phybench/
 
 # Run formatting manually
-uv run ruff format scripts/
+uv run ruff format phybench/
 
 # Run type checking manually (lenient mode for existing codebase)
-uv run mypy scripts/
+uv run mypy phybench/
 
 # Run both linting and formatting on all files
 pre-commit run --all-files
@@ -205,9 +213,10 @@ Pre-commit hooks automatically run on each commit and include:
 Configuration files:
 - `.pre-commit-config.yaml`: Pre-commit hook configuration
 - `pyproject.toml`: Ruff configuration under `[tool.ruff]`
+- `mypy.ini`: mypy configuration
 
 ### Configuration Management
-- Copy `config.ini.sample` to `config.ini` and edit your settings
+- Copy `config.toml.sample` to `config.toml` and edit your settings
 - All CLI arguments can override config values
 
 ## License
