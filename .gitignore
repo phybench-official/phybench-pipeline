@@ -14,7 +14,7 @@ __pycache__/
 *$py.class
 
 # Configuration with sensitive data
-config.ini
+config.toml
 
 # Output and result files
 *.json
@@ -28,6 +28,7 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+*.backup
 
 # AI instructions
 .github/copilot-instructions.md

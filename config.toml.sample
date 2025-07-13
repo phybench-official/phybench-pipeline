@@ -1,0 +1,63 @@
+# PhyBench Pipeline Configuration
+
+# Define a list of API providers. The api_caller will automatically select the
+# correct provider based on the model name you pass via the --model argument.
+[[providers]]
+# A unique name for this provider configuration
+name = "openai"
+base_url = "https://api.openai.com/v1"
+# It's recommended to set the API key as an environment variable, e.g.,
+# export PROVIDER_OPENAI_API_KEY="your_sk-..."
+api_key = "your_openai_api_key"
+# A list of models that this provider configuration applies to.
+models = ["gpt-4o", "gpt-3.5-turbo"]
+
+[[providers]]
+name = "anthropic"
+base_url = "https://api.anthropic.com/v1"
+api_key = "your_anthropic_api_key"
+models = ["claude-3-opus-20240229", "claude-3-sonnet-20240229"]
+
+[[providers]]
+name = "local_ollama"
+base_url = "http://localhost:11434/v1"
+# For local models that don't require a key, provide a non-empty string.
+api_key = "ollama"
+models = ["llama3", "phi3"]
+
+# --- Default settings for the api_caller and evaluation modules ---
+# These can still be overridden by command-line arguments.
+
+[logging]
+log_dir = "logs"
+log_file = "{api_caller_input_file}"
+console_level = "INFO"
+file_level = "DEBUG"
+
+[api_caller.paths]
+input_dir = "data/ground_truth"
+input_file = "test.json"
+output_dir = "data/model_solutions"
+output_file = "{input_file}_{model}"
+
+[api_caller.execution]
+num_consumers = 10
+chat_timeout = 1200
+repeat_count = 1
+max_retries = 5
+max_task_queue_size = 100
+
+[evaluation.paths]
+gt_dir = "data/ground_truth"
+gt_file = "{api_caller_input_file}"
+model_answers_dir = "data/model_solutions"
+model_answers_file = "{api_caller_output_file}"
+output_dir = "data/evaluation_results"
+output_file = "{api_caller_input_file}"
+
+[evaluation.scoring]
+initial_score = 60
+scoring_slope = 100
+
+[evaluation.execution]
+num_processes = 0 # 0 for auto-detect

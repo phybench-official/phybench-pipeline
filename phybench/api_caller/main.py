@@ -3,38 +3,38 @@ import asyncio
 import json
 import queue
 import shutil
-import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any
 
+from openai import AsyncOpenAI
 from tqdm import tqdm
 
-current_dir = Path(__file__).resolve().parent
-root_dir = current_dir.parent.parent
-if str(current_dir) not in sys.path:
-    sys.path.insert(0, str(current_dir))
-if str(root_dir) not in sys.path:
-    sys.path.insert(0, str(root_dir))
+from phybench.config_loader import get_settings
+from phybench.logging_config import get_logger, setup_logging
+from phybench.settings import ProviderSettings
 
-from api_config import ApiConfig, load_api_config  # noqa: E402
-from client import (  # noqa: E402
+from .client import (
     create_async_client,
     generate_solution_data,
-    initialize_globals_from_config,
     read_problems,
 )
-from openai import AsyncOpenAI  # noqa: E402
-
-from phybench.logging_config import get_logger, setup_logging  # noqa: E402
 
 logger = get_logger(__name__)
 
-APP_CONFIG: ApiConfig | None = None
-
 task_queue: "queue.Queue[dict[str, Any] | None]"
 result_queue: "queue.Queue[dict[str, Any] | None]"
+
+
+def get_provider_for_model(
+    model_name: str, providers: list[ProviderSettings]
+) -> ProviderSettings | None:
+    """Finds the correct provider configuration for a given model name."""
+    for provider in providers:
+        if model_name in provider.models:
+            return provider
+    return None
 
 
 def get_output_file(
@@ -54,20 +54,16 @@ def get_output_file(
     """
     sanitized_model_name = model_name.replace("/", "_").replace(":", "_")
 
-    # Extract filename without extension from input_filename (handle both with/without .json)
     input_path = Path(input_filename)
     input_base = input_path.stem
 
-    # If the file had no extension, use the original name
     if input_path.suffix == "":
         input_base = input_path.name
 
-    # Replace placeholders in the template
     output_filename = output_template.replace("{input_file}", input_base).replace(
         "{model}", sanitized_model_name
     )
 
-    # Ensure .json extension
     if not output_filename.endswith(".json"):
         output_filename += ".json"
 
@@ -379,63 +375,6 @@ def result_writer(
     )
 
 
-def parse_args(config: ApiConfig) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Parallel API caller for physics problems"
-    )
-
-    # Build default input file path from directory + filename
-    default_input_path = get_input_file_path(config.input_dir, config.input_file)
-
-    parser.add_argument(
-        "--input-dir",
-        default=config.input_dir,
-        help="Directory containing input JSON files",
-    )
-    parser.add_argument(
-        "--input-file",
-        default=default_input_path,
-        help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=config.output_dir,
-        help="Directory to store output files (individual model solution files)",
-    )
-    parser.add_argument(
-        "--output-file",
-        default=config.output_file,
-        help="Output filename template. Use {input_file} and {model} placeholders",
-    )
-    parser.add_argument("--model", default=config.model, help="Model name to use")
-    parser.add_argument(
-        "--repeat-count",
-        type=int,
-        default=config.repeat_count,
-        help="Number of times to repeat each problem",
-    )
-    parser.add_argument(
-        "--num-consumers",
-        type=int,
-        default=config.num_consumers,
-        help="Number of consumer threads",
-    )
-    parser.add_argument(
-        "--chat-timeout",
-        type=float,
-        default=config.chat_timeout,
-        help="API call timeout in seconds",
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=config.max_retries,
-        help="Maximum retries for failed API calls",
-    )
-
-    return parser.parse_args()
-
-
 def check_existing_solutions(output_file: Path) -> dict[str, set[str]]:
     """
     Checks existing solutions in the output file and returns a dictionary
@@ -505,147 +444,164 @@ async def validate_model(
         return False
 
 
-def normalize_json_filename(filename: str) -> str:
-    """
-    Normalizes a filename to ensure it has a .json extension.
-
-    Args:
-        filename: The input filename (with or without .json extension)
-
-    Returns:
-        The filename with .json extension ensured
-    """
-    if not filename.endswith(".json"):
-        return f"{filename}.json"
-    return filename
-
-
-def get_input_file_path(input_dir: str | None, input_file: str | None) -> str | None:
-    """
-    Constructs the full input file path from directory and filename, normalizing the JSON extension.
-
-    Args:
-        input_dir: The directory containing input files
-        input_file: The input filename (with or without .json extension)
-
-    Returns:
-        The full path to the input file, or None if either argument is None
-    """
-    if not input_dir or not input_file:
-        return None
-
-    normalized_filename = normalize_json_filename(input_file)
-    return str(Path(input_dir) / normalized_filename)
-
-
 def main() -> None:
-    global APP_CONFIG, task_queue, result_queue
+    global task_queue, result_queue
 
-    APP_CONFIG = load_api_config()
-    args = parse_args(APP_CONFIG)
-
-    # Setup logging early
-    setup_logging(
-        log_level="DEBUG"
-        if args.model and "debug" in args.model.lower()
-        else (APP_CONFIG.file_level or "INFO"),
-        console_level=APP_CONFIG.console_level or "INFO",
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "--config-file",
+        default="config.toml",
+        help="Path to the configuration file (e.g., config.toml)",
     )
+    args, remaining_argv = pre_parser.parse_known_args()
 
-    # Handle input file path with normalization
-    input_file_path = args.input_file
-    if not input_file_path:
-        logger.error(
-            "No input file specified. Use --input-file or set input_file in config."
-        )
+    try:
+        settings = get_settings(args.config_file)
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        if args.config_file == "config.toml":
+            print(
+                "Please create a 'config.toml' file or use --config-file to specify a path."
+            )
         return
 
-    # Normalize input file path to ensure .json extension
-    input_file_path = str(
-        Path(input_file_path).parent
-        / normalize_json_filename(Path(input_file_path).name)
+    parser = argparse.ArgumentParser(
+        description="Parallel API caller for physics problems", parents=[pre_parser]
     )
 
-    if not args.output_dir:
+    parser.add_argument(
+        "--input-dir",
+        default=settings.api_caller.paths.input_dir,
+        help="Directory containing input JSON files",
+    )
+    parser.add_argument(
+        "--input-file",
+        default=settings.api_caller.paths.input_file,
+        help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=settings.api_caller.paths.output_dir,
+        help="Directory to store output files (individual model solution files)",
+    )
+    parser.add_argument(
+        "--output-file",
+        default=settings.api_caller.paths.output_file,
+        help="Output filename template. Use {input_file} and {model} placeholders",
+    )
+    parser.add_argument("--model", help="Model name to use")
+    parser.add_argument(
+        "--repeat-count",
+        type=int,
+        default=settings.api_caller.execution.repeat_count,
+        help="Number of times to repeat each problem",
+    )
+    parser.add_argument(
+        "--num-consumers",
+        type=int,
+        default=settings.api_caller.execution.num_consumers,
+        help="Number of consumer threads",
+    )
+    parser.add_argument(
+        "--chat-timeout",
+        type=float,
+        default=settings.api_caller.execution.chat_timeout,
+        help="API call timeout in seconds",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=settings.api_caller.execution.max_retries,
+        help="Maximum retries for failed API calls",
+    )
+
+    final_args = parser.parse_args(remaining_argv)
+
+    setup_logging(
+        log_level=settings.logging.file_level,
+        console_level=settings.logging.console_level,
+    )
+
+    input_file_path = Path(final_args.input_dir) / final_args.input_file
+
+    if not final_args.output_dir:
         logger.error(
             "No output directory specified. Use --output-dir or set output_dir in config."
         )
         return
 
-    if not args.model or args.model.strip() == "":
+    if not final_args.model or final_args.model.strip() == "":
         logger.error("No model specified. Use --model or set model in config.")
         return
 
-    if not APP_CONFIG.api_key:
-        logger.error("No API key specified. Please set api_key in config.")
-        return
+    provider = get_provider_for_model(final_args.model, settings.providers)
 
-    if not APP_CONFIG.base_url:
-        logger.error("No base URL specified. Please set base_url in config.")
-        return
-
-    logger.info(f"🔍 Validating model '{args.model}'...")
-    if not asyncio.run(
-        validate_model(APP_CONFIG.api_key, APP_CONFIG.base_url, args.model)
-    ):
+    if not provider:
         logger.error(
-            f"Model '{args.model}' is not available. Please check your model name and API configuration."
+            f"No provider found for model '{final_args.model}'. Please add it to your config.toml"
         )
         return
-    logger.success(f"✅ Model '{args.model}' validated successfully.")
 
-    initialize_globals_from_config(APP_CONFIG.openai_o_model_keywords)
-    problems = read_problems(input_file_path)
+    logger.info(
+        f"🔍 Validating model '{final_args.model}' using provider '{provider.name}'..."
+    )
+    if not asyncio.run(
+        validate_model(provider.api_key, provider.base_url, final_args.model)
+    ):
+        logger.error(
+            f"Model '{final_args.model}' is not available. Please check your model name and API configuration."
+        )
+        return
+    logger.success(f"✅ Model '{final_args.model}' validated successfully.")
+
+    problems = read_problems(str(input_file_path))
     if not problems:
         logger.error("No problems loaded. Exiting.")
         return
 
-    output_dir_path = Path(args.output_dir)
+    output_dir_path = Path(final_args.output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
-    # Get input filename from the input file path
-    input_filename = Path(input_file_path).name
-    output_template = (
-        args.output_file or APP_CONFIG.output_file or "{input_file}_{model}"
-    )
-
-    # Warning if no output template is configured
-    if not args.output_file and not APP_CONFIG.output_file:
-        logger.warning(
-            "No output_file template specified in config or CLI. Using default: {input_file}_{model}"
-        )
+    input_filename = input_file_path.name
+    output_template = final_args.output_file
 
     output_file = get_output_file(
-        output_dir_path, args.model, input_filename, output_template
+        output_dir_path, final_args.model, input_filename, output_template
     )
 
-    task_queue = queue.Queue(maxsize=APP_CONFIG.max_task_queue_size or 0)
+    task_queue = queue.Queue(maxsize=settings.api_caller.execution.max_task_queue_size)
     result_queue = queue.Queue()
 
-    total_tasks = len(problems) * args.repeat_count
+    total_tasks = len(problems) * final_args.repeat_count
 
     logger.info("🚀 Starting parallel processing:")
-    logger.info(f"  - Model: {args.model}")
+    logger.info(f"  - Model: {final_args.model}")
     logger.info(f"  - Problems: {len(problems)}")
-    logger.info(f"  - Repeat count: {args.repeat_count}")
+    logger.info(f"  - Repeat count: {final_args.repeat_count}")
     logger.info(f"  - Total tasks: {total_tasks}")
-    logger.info(f"  - Consumers: {args.num_consumers}")
+    logger.info(f"  - Consumers: {final_args.num_consumers}")
     logger.info(f"  - Output: {output_file}")
 
     producer_thread = threading.Thread(
         target=producer,
-        args=(problems, args.model, args.repeat_count, output_file, "Producing tasks"),
+        args=(
+            problems,
+            final_args.model,
+            final_args.repeat_count,
+            output_file,
+            "Producing tasks",
+        ),
     )
 
     consumer_threads = []
-    for _ in range(args.num_consumers):
+    for _ in range(final_args.num_consumers):
         thread = threading.Thread(
             target=run_consumer_loop,
             args=(
-                APP_CONFIG.api_key,
-                APP_CONFIG.base_url,
-                APP_CONFIG.chat_timeout,
-                APP_CONFIG.max_retries,
+                provider.api_key,
+                provider.base_url,
+                final_args.chat_timeout,
+                final_args.max_retries,
             ),
         )
         consumer_threads.append(thread)
@@ -667,7 +623,7 @@ def main() -> None:
     task_queue.join()
     logger.info("All tasks completed")
 
-    for _ in range(args.num_consumers):
+    for _ in range(final_args.num_consumers):
         task_queue.put(None)
 
     for thread in consumer_threads:
