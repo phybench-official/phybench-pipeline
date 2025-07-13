@@ -289,7 +289,7 @@ def bar_inside_vec(s: str) -> str:
 
 def vec_lower_idx(input_str: str) -> str:
     """
-    in the annoying latex2sympy, error may occur when \\vec{a_{b}}, we need \\vec{a_b}
+    in the annoying latex2sympy, error may occur when \\vec{a_{b}}, we need \\vec{a}_{b}
     Args：
         input_str (str): Original string
 
@@ -326,15 +326,16 @@ def convert_vec_syntax(text: str) -> str:
     return re.sub(pattern, replacement, text)
 
 
-def remove_outer_braces(tex_str: str) -> str:
-    """
-    convert {base}_{subscript} to base_{subscript}
-    Example：
-    {a}_{xyz} → a_{xyz}
-    {\theta}_{0} → \theta_{0}
-    """
-    pattern = r"\{(\\(?:[a-zA-Z]+|.)|[^{}])+\}_\{([^}]+)\}"
-    return re.sub(pattern, r"\1_{\2}", tex_str)
+# def remove_outer_braces(tex_str: str) -> str:
+#     """
+#     convert {base}_{subscript} to base_{subscript}
+#     Example：
+#     {a}_{xyz} → a_{xyz}
+#     {\theta}_{0} → \theta_{0}
+#     """
+#     pattern = r"\{(\\(?:[a-zA-Z]+|.)|[^{}])+\}_\{([^}]+)\}"
+#     This is problematic, maybe using r"\{([^{}]+)\}_\{([^}]+)\}" works?
+#     return re.sub(pattern, r"\1_{\2}", tex_str)
 
 
 def extract_last_equal_content(s: str, strip_whitespace: bool = True) -> str:
@@ -401,7 +402,7 @@ def first_pre_process(s: str, extrac_box: bool = True) -> str:
     # s=remove_non_ascii(s)
     s = s.replace("\\{", "(")
     s = s.replace("\\}", ")")
-    if not brackets_balanced(s):
+    if not brackets_balanced(s):  # FIXME: add a warning here?
         pass
     if extrac_box:
         boxed_content = remove_command(s, "\\boxed", keep_inside=True)
@@ -543,12 +544,6 @@ def second_pre_process(s: str) -> str:
 
 @dataclass(frozen=True)
 class MyConfig(ConversionConfig):
-    # Override parent class defaults to maintain original behavior
-    interpret_as_mixed_fractions: bool = False
-    interpret_simple_eq_as_assignment: bool = False
-    interpret_contains_as_eq: bool = True
-    lowercase_symbols: bool = False  # Critical: prevent variable lowercasing
-
     """
     Args:
         interpret_as_mixed_fractions (bool): Whether to interpert 2 \\frac{1}{2} as 2/2 or 2 + 1/2
@@ -556,6 +551,12 @@ class MyConfig(ConversionConfig):
         interpret_contains_as_eq (bool): Whether to interpret contains as equality x \\in {1,2,3} -> x = {1,2,3}
         lowercase_symbols (bool): Whether to lowercase all symbols
     """
+
+    # Override parent class defaults to maintain original behavior
+    interpret_as_mixed_fractions: bool = False
+    interpret_simple_eq_as_assignment: bool = False
+    interpret_contains_as_eq: bool = True
+    lowercase_symbols: bool = False  # Critical: prevent variable lowercasing
 
 
 @dataclass(frozen=True)
