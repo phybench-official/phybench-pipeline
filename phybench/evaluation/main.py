@@ -58,7 +58,7 @@ def evaluate(
     gen_file: str,
     output_file: str,
     scoring_parameters: list[int],
-    log_file: str = "evaluation.log",
+    log_file: str = "logs/evaluation.log",
 ) -> str:
     if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
@@ -186,6 +186,8 @@ def evaluate(
 
 
 def main() -> None:
+    setup_logging(log_file="logs/evaluation.log")
+    logger = get_logger(__name__)
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "--config-file",
@@ -196,8 +198,9 @@ def main() -> None:
 
     try:
         settings = get_settings(args.config_file)
+        logger.info(f"Loaded settings from {args.config_file}")
     except FileNotFoundError as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Missing config file: {e}")
         if args.config_file == "config.toml":
             logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
@@ -269,26 +272,37 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        type=str,
+        default=settings.api_caller.model.model,
         help="Model name to evaluate (just for filename template resolution)",
     )
     parser.add_argument(
-        "--input-file",
-        type=str,
+        "--api-caller-input-file",
+        default=settings.api_caller.paths.input_file,
         help="Input file in api caller (just for filename template resolution)",
+    )
+    parser.add_argument(
+        "--api-caller-output-file",
+        default=settings.api_caller.paths.output_file,
+        help="Output file for API caller (just for filename template resolution)",
     )
 
     final_args = parser.parse_args(remaining_argv)
 
-    if not final_args.model:
-        logger.error("No model specified. Use --model")
-        return
-
-    if not final_args.input_file:
-        logger.error("No input file specified. Use --input-file")
-        return
-
-    resolver = PathResolver(settings, final_args.model, final_args.input_file)
+    resolver = PathResolver(
+        final_args.model,
+        settings.api_caller.paths.input_dir,
+        final_args.api_caller_input_file,
+        settings.api_caller.paths.output_dir,
+        final_args.api_caller_output_file,
+        final_args.gt_dir,
+        final_args.gt_file,
+        final_args.model_answers_dir,
+        final_args.model_answers_file,
+        final_args.output_dir,
+        final_args.output_file,
+        final_args.log_dir,
+        final_args.log_file,
+    )
 
     setup_logging(
         log_file=resolver.get_log_file(),

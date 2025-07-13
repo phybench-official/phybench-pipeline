@@ -38,6 +38,7 @@ def setup_logging(
     # Ensure log directory exists
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
+    logger.remove()
     # Console logging with color and higher level filtering
     console_log_level = console_level or log_level
     logger.add(

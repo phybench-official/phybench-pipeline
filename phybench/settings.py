@@ -18,6 +18,9 @@ class LoggingSettings(BaseModel):
 
 
 # --- API Caller Settings ---
+class APICallerModelSettings(BaseModel):
+    model: str = ""
+    openai_o_model_keywords: list[str] = []
 
 
 class APICallerPathsSettings(BaseModel):
@@ -36,6 +39,7 @@ class APICallerExecutionSettings(BaseModel):
 
 
 class APICallerSettings(BaseModel):
+    model: APICallerModelSettings
     paths: APICallerPathsSettings
     execution: APICallerExecutionSettings
 

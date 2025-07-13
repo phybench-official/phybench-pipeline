@@ -414,6 +414,8 @@ async def validate_model(
 
 def main() -> None:
     global task_queue, result_queue
+    setup_logging(log_file="logs/api_caller.log")
+    logger = get_logger(__name__)
 
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
@@ -425,8 +427,9 @@ def main() -> None:
 
     try:
         settings = get_settings(args.config_file)
+        logger.info(f"Loaded settings from {args.config_file}")
     except FileNotFoundError as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Missing config file: {e}")
         if args.config_file == "config.toml":
             logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
@@ -437,6 +440,11 @@ def main() -> None:
         description="Parallel API caller for physics problems", parents=[pre_parser]
     )
 
+    parser.add_argument(
+        "--model",
+        default=settings.api_caller.model.model,
+        help="Model name to use for API calls (must be configured in config.toml)",
+    )
     parser.add_argument(
         "--input-dir",
         default=settings.api_caller.paths.input_dir,
@@ -457,7 +465,6 @@ def main() -> None:
         default=settings.api_caller.paths.output_file,
         help="Output filename template. Use {input_file} and {model} placeholders",
     )
-    parser.add_argument("--model", help="Model name to use")
     parser.add_argument(
         "--repeat-count",
         type=int,
@@ -482,6 +489,16 @@ def main() -> None:
         default=settings.api_caller.execution.max_retries,
         help="Maximum retries for failed API calls",
     )
+    parser.add_argument(
+        "--log-dir",
+        default=settings.logging.log_dir,
+        help="Directory to store log files",
+    )
+    parser.add_argument(
+        "--log-file",
+        default=settings.logging.log_file,
+        help="Log file template. Use {input_file} and {model} placeholders",
+    )
 
     final_args = parser.parse_args(remaining_argv)
 
@@ -489,7 +506,21 @@ def main() -> None:
         logger.error("No model specified. Use --model or set model in config.")
         return
 
-    resolver = PathResolver(settings, final_args.model, final_args.input_file)
+    resolver = PathResolver(
+        final_args.model,
+        final_args.input_dir,
+        final_args.input_file,
+        final_args.output_dir,
+        final_args.output_file,
+        settings.evaluation.paths.gt_dir,
+        settings.evaluation.paths.gt_file,
+        settings.evaluation.paths.model_answers_dir,
+        settings.evaluation.paths.model_answers_file,
+        settings.evaluation.paths.output_dir,
+        settings.evaluation.paths.output_file,
+        final_args.log_dir,
+        final_args.log_file,
+    )
 
     setup_logging(
         log_file=resolver.get_log_file(),
@@ -498,16 +529,6 @@ def main() -> None:
     )
 
     input_file_path = resolver.get_api_caller_input_file()
-
-    if not final_args.output_dir:
-        logger.error(
-            "No output directory specified. Use --output-dir or set output_dir in config."
-        )
-        return
-
-    if not final_args.model or final_args.model.strip() == "":
-        logger.error("No model specified. Use --model or set model in config.")
-        return
 
     provider = get_provider_for_model(final_args.model, settings.providers)
 
