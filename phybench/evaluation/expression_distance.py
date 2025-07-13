@@ -153,10 +153,12 @@ Scoring function from relative distance
 """
 
 
-def score_calc(tree_dist: float, tree_size: int, parameters: list[int]) -> float:
+def score_calc(
+    tree_dist: float, tree_size: int, scoring_parameters: list[int]
+) -> float:
     if tree_dist == 0.0:
         return 100
-    return max(0, parameters[0] - parameters[1] * tree_dist / tree_size)
+    return max(0, scoring_parameters[0] - scoring_parameters[1] * tree_dist / tree_size)
 
 
 class TimeoutError(Exception):
@@ -279,7 +281,6 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         return TreeNode(label="function_" + func_name, children=children)
 
     else:
-        # print(expr)
         logger.error(
             f"Unsupported Sympy type: {type(expr).__name__}, Expression: {expr}"
         )
@@ -347,8 +348,8 @@ class DistError(Exception):
 def EED(
     answer_latex: str,
     test_latex: str,
+    scoring_parameters: list[int],
     debug_mode: bool = False,
-    scoring_parameters: list[int] | None = None,
 ) -> tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
@@ -385,9 +386,6 @@ def EED(
             - answer_tree_size (int): The size of the expression tree for the answer.
             - distance (float): The raw distance between the two expression trees.
     """
-
-    if scoring_parameters is None:
-        raise ValueError("scoring_parameters must be provided")
 
     if not test_latex:
         return 0, -1, -1, -1

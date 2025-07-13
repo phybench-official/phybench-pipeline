@@ -248,7 +248,7 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
     t0 = time.time()
 
     score, rel_distance, treesize, distance_num = EED(
-        right_ans, ai_ans, debug_mode=False, scoring_parameters=scoring_pars
+        right_ans, ai_ans, scoring_parameters=scoring_pars, debug_mode=False
     )
     t1 = time.time()
 
@@ -260,25 +260,22 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
 
 
 def main(
-    gt_file_dir: str,
-    gen_file_dir: str,
+    gt_file: str,
+    gen_file: str,
     output_file: str,
-    parameters: list[int] | None,
+    scoring_parameters: list[int],
     log_file: str = "logging.txt",
 ) -> str:
-    if not parameters:
+    if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
 
     # Initialize logging with configurable path
     initialize_logging(log_file)
 
-    final_answer_f = gen_file_dir
-    approved_problems_f = gt_file_dir
-
-    with open(final_answer_f, encoding="utf-8") as f:
+    with open(gen_file, encoding="utf-8") as f:
         final_answer = json.load(f)
 
-    with open(approved_problems_f, encoding="utf-8") as f:
+    with open(gt_file, encoding="utf-8") as f:
         approved_problems = json.load(f)
 
     approved_problems_dict = {}
@@ -307,7 +304,6 @@ def main(
             continue
         for model in model_list:
             id_number = answers["id"]
-            # print(id_number,model)
             query_answer = (id_number, model)
             if query_answer in final_answer_dict:
                 model_answer = final_answer_dict[(id_number, model)]["model_answer"]
@@ -319,7 +315,7 @@ def main(
                         "model": model,
                         "model_answer": model_answer,
                         "right_answer": right_answer,
-                        "scoring_pars": parameters,
+                        "scoring_pars": scoring_parameters,
                         "log_file_path": log_file,
                     }
                 )
