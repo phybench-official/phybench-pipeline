@@ -11,8 +11,6 @@ from tqdm import tqdm
 
 from phybench.logging_config import get_logger
 
-logger = get_logger(__name__)
-
 _NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
 
 
@@ -41,6 +39,8 @@ def read_problems(filename: str) -> list[dict[str, Any]]:
     Returns:
         A list of dictionaries, where each dictionary represents a problem.
     """
+
+    logger = get_logger(__name__)
     try:
         with open(filename, encoding="utf-8") as f:
             data = json.load(f)
@@ -105,6 +105,8 @@ async def write_solution(solution: dict[str, Any], output_filename: str) -> bool
     Returns:
         True if write was successful, False otherwise.
     """
+
+    logger = get_logger(__name__)
     max_retries = 3
 
     for attempt in range(max_retries):
@@ -283,6 +285,8 @@ async def process_problem(
     Returns:
         The solution dictionary that was generated and written.
     """
+
+    logger = get_logger(__name__)
     problem_id = problem.get("id", "N/A")
     status_msg_key = f"problem {problem_id}" + (
         f" (attempt {repeat_idx + 1})" if repeat_idx is not None else ""

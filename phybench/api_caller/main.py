@@ -22,8 +22,6 @@ from .client import (
     read_problems,
 )
 
-logger = get_logger(__name__)
-
 task_queue: "queue.Queue[dict[str, Any] | None]"
 result_queue: "queue.Queue[dict[str, Any] | None]"
 
@@ -79,6 +77,8 @@ def producer(
         output_file: Path to output file for checking existing solutions.
         pbar_desc: Description for the tqdm progress bar.
     """
+
+    logger = get_logger(__name__)
     if not problems:
         logger.warning("No problems to process")
         return
@@ -137,6 +137,8 @@ async def consumer_task_processor(
         chat_timeout: Timeout in seconds for the API call.
         max_retries: Maximum number of retries for a task.
     """
+
+    logger = get_logger(__name__)
     while True:
         try:
             task = task_queue.get(timeout=1.0)
@@ -199,6 +201,8 @@ def run_consumer_loop(
     It creates and closes an API client for this consumer's lifecycle.
     """
 
+    logger = get_logger(__name__)
+
     async def actual_processing_loop() -> None:
         client = create_async_client(api_key, base_url)
         try:
@@ -220,6 +224,8 @@ def sync_write_solutions(solutions: list[dict[str, Any]], output_file: Path) -> 
         solutions: A list of solution dictionaries (representing the entire dataset to be written).
         output_file: The path to the output JSON file.
     """
+
+    logger = get_logger(__name__)
     max_retries = 3
 
     for attempt in range(max_retries):
@@ -266,6 +272,8 @@ def result_writer(
         batch_size: Number of solutions to buffer in memory (currently not directly tied to write frequency).
         pbar_desc: Description for the tqdm progress bar.
     """
+
+    logger = get_logger(__name__)
     existing_solutions: list[dict[str, Any]] = []
     if output_file.exists():
         try:
@@ -375,6 +383,7 @@ def check_existing_solutions(output_file: Path) -> dict[str, set[str]]:
             completed_tasks[model].add(task_key)
 
     except Exception as e:
+        logger = get_logger(__name__)
         logger.warning(f"Could not check existing solutions: {e}")
 
     return completed_tasks
@@ -408,6 +417,7 @@ async def validate_model(
         finally:
             await client.close()
     except Exception as e:
+        logger = get_logger(__name__)
         logger.error(f"Model validation failed for '{model}': {e}")
         return False
 

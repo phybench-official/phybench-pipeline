@@ -33,8 +33,6 @@ from phybench.logging_config import get_logger
 from .latex_processor import master_convert
 from .tree_distance import ext_distance
 
-logger = get_logger(__name__)
-
 F = TypeVar("F", bound=Callable[..., Any])
 
 NegativeInfinity: Final[sympy.Basic] = -sympy.oo
@@ -258,6 +256,7 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         >>> print(tree)
     """
     # Symbols and constants
+    logger = get_logger(__name__)
     if isinstance(expr, Integer | Float | Rational) or expr in (
         Pi,
         EulerNumber,
@@ -386,6 +385,8 @@ def EED(
             - answer_tree_size (int): The size of the expression tree for the answer.
             - distance (float): The raw distance between the two expression trees.
     """
+
+    logger = get_logger(__name__)
 
     if not test_latex:
         return 0, -1, -1, -1

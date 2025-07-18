@@ -15,8 +15,6 @@ from phybench.path_resolver import PathResolver
 
 from .expression_distance import EED
 
-logger = get_logger(__name__)
-
 __all__: Final[list[str]] = [
     "evaluate",
     "main",
@@ -60,6 +58,8 @@ def evaluate(
     scoring_parameters: list[int],
     log_file: str = "logs/evaluation.log",
 ) -> str:
+    logger = get_logger(__name__)
+    logger.info("Starting evaluation...")
     if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
 
