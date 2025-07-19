@@ -29,6 +29,8 @@ from sympy import (
     pi as Pi,
 )
 
+from phybench.settings import EvaluationEEDSettings
+
 from .latex_processor import master_convert
 from .tree_distance import ext_distance
 
@@ -53,66 +55,40 @@ Functions: sine, cosine, exponential, logarithm, etc.
 Operators: basic binary operations including addition, multiplication, and exponentiation.
 """
 
-# The costs can be modified if you think their values are different
-insert_cost: Final[dict[str, int]] = {
-    "number": 1,
-    "symbol": 1,
-    "operator": 1,
-    "function": 1,
-}
-delete_cost: Final[dict[str, int]] = {
-    "number": 1,
-    "symbol": 1,
-    "operator": 1,
-    "function": 1,
-}
-update_cost: Final[dict[str, int]] = {
-    "number": 1,
-    "symbol": 1,
-    "operator": 1,
-    "function": 1,
-}
 
-change_type_cost: Final[int] = (
-    1  # the cost of an update between different types, can be set to higher
-)
-
-bar_size: Final[int] = 5  # the minimum size of triggering cluster discount
-discount_slope: Final[float] = 0.6
-
-simplify_time_limit: Final[int] = 15
-equals_time_limit: Final[int] = 10
-
-
-def update_func(x: TreeNode, y: TreeNode) -> float:
+def update_func(x: TreeNode, y: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
     if x.label == y.label:
         return 0
 
     elif x.label.split("_")[0] == y.label.split("_")[0]:
-        return update_cost[x.label.split("_")[0]]
-    return change_type_cost
+        return eed_settings.update_cost[x.label.split("_")[0]]
+    return eed_settings.change_type_cost
 
 
-def remove_func(x: TreeNode) -> float:
-    return delete_cost[x.label.split("_")[0]]
+def remove_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
+    return eed_settings.delete_cost[x.label.split("_")[0]]
 
 
-def remove_tree_func(x: TreeNode) -> float:
+def remove_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
     if not x.children:
-        return remove_func(x)
-    s = calc_tree_size(x)
-    return min(s, discount_slope * (s - bar_size) + bar_size)
+        return remove_func(x, eed_settings)
+    s = calc_tree_size(x, eed_settings)
+    return min(
+        s,
+        eed_settings.discount_slope * (s - eed_settings.bar_size)
+        + eed_settings.bar_size,
+    )
 
 
-def insert_func(x: TreeNode) -> float:
-    return insert_cost[x.label.split("_")[0]]
+def insert_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
+    return eed_settings.insert_cost[x.label.split("_")[0]]
 
 
-def insert_tree_func(x: TreeNode) -> float:
-    return remove_tree_func(x)
+def insert_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
+    return remove_tree_func(x, eed_settings)
 
 
-def calc_tree_size(node: TreeNode) -> int:
+def calc_tree_size(node: TreeNode, eed_settings: EvaluationEEDSettings) -> int:
     """
     Calculate the size of a subtree based on its total insertion cost.
     The function computes the size of a subtree by summing up the insertion
@@ -132,13 +108,13 @@ def calc_tree_size(node: TreeNode) -> int:
           node to store the calculated subtree size for future use.
     """
 
-    total = insert_cost[node.label.split("_")[0]]
+    total = eed_settings.insert_cost[node.label.split("_")[0]]
 
     if node.children and node.subtree_size != 0:
         return node.subtree_size
 
     for child in node.children:
-        total += calc_tree_size(child)
+        total += calc_tree_size(child, eed_settings)
 
     node.subtree_size = total
 
@@ -151,11 +127,14 @@ Scoring function from relative distance
 
 
 def score_calc(
-    tree_dist: float, tree_size: int, scoring_parameters: list[int]
+    tree_dist: float, tree_size: int, eed_settings: EvaluationEEDSettings
 ) -> float:
     if tree_dist == 0.0:
         return 100
-    return max(0, scoring_parameters[0] - scoring_parameters[1] * tree_dist / tree_size)
+    return max(
+        0,
+        eed_settings.initial_score - eed_settings.scoring_slope * tree_dist / tree_size,
+    )
 
 
 class TimeoutError(Exception):
@@ -345,9 +324,8 @@ class DistError(Exception):
 def EED(
     answer_latex: str,
     test_latex: str,
-    scoring_parameters: list[int],
+    eed_settings: EvaluationEEDSettings,
     debug_mode: bool = False,
-    simplify_timeout: float = 30,
 ) -> tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
@@ -411,23 +389,23 @@ def EED(
 
     try:
         answer_exp, rep1 = posify(answer_exp)
-        answer_exp = time_simplify(answer_exp, timeout=simplify_timeout)
+        answer_exp = time_simplify(answer_exp, timeout=eed_settings.simplify_time_limit)
 
         test_exp, rep2 = posify(test_exp)
-        test_exp = time_simplify(test_exp, timeout=simplify_timeout)
+        test_exp = time_simplify(test_exp, timeout=eed_settings.simplify_time_limit)
 
         answer_exp = answer_exp.subs(rep1)
         test_exp = test_exp.subs(rep2)
 
         zero_exp = time_simplify(
-            expand(answer_exp - test_exp), timeout=simplify_timeout
+            expand(answer_exp - test_exp), timeout=eed_settings.simplify_time_limit
         )
 
         if answer_exp == test_exp or zero_exp == 0:
             return 100, 0.0, 0, 0
 
         if time_equal(
-            answer_exp, test_exp, timeout=simplify_timeout / 3
+            answer_exp, test_exp, timeout=eed_settings.equals_time_limit
         ):  # equality check with a shorter timeout
             return 100, 0.0, 0, 0
 
@@ -459,22 +437,22 @@ def EED(
         tree_test,
         tree_answer,
         get_children=lambda x: x.get_children(),
-        single_insert_cost=insert_func,
-        insert_cost=insert_tree_func,
-        single_remove_cost=remove_func,
-        remove_cost=remove_tree_func,
-        update_cost=update_func,
+        single_insert_cost=lambda x: insert_func(x, eed_settings),
+        insert_cost=lambda x: insert_tree_func(x, eed_settings),
+        single_remove_cost=lambda x: remove_func(x, eed_settings),
+        remove_cost=lambda x: remove_tree_func(x, eed_settings),
+        update_cost=lambda x, y: update_func(x, y, eed_settings),
     )
     try:
         distance = ext_distance(
             tree_test,
             tree_answer,
             get_children=lambda x: x.get_children(),
-            single_insert_cost=insert_func,
-            insert_cost=insert_tree_func,
-            single_remove_cost=remove_func,
-            remove_cost=remove_tree_func,
-            update_cost=update_func,
+            single_insert_cost=lambda x: insert_func(x, eed_settings),
+            insert_cost=lambda x: insert_tree_func(x, eed_settings),
+            single_remove_cost=lambda x: remove_func(x, eed_settings),
+            remove_cost=lambda x: remove_tree_func(x, eed_settings),
+            update_cost=lambda x, y: update_func(x, y, eed_settings),
         )
     except Exception as e:
         logger.error(f"Failed to calculate distance: {type(e).__name__}: {e}")
@@ -482,12 +460,12 @@ def EED(
             raise DistError(
                 f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"
             ) from e
-        return 0, -1, calc_tree_size(tree_answer), -1
-    tree_size = calc_tree_size(tree_answer)
+        return 0, -1, calc_tree_size(tree_answer, eed_settings), -1
+    tree_size = calc_tree_size(tree_answer, eed_settings)
     distance_number = distance
 
     relative_distance = distance / tree_size
 
-    score = score_calc(distance_number, tree_size, scoring_parameters)
+    score = score_calc(distance_number, tree_size, eed_settings)
 
     return score, relative_distance, tree_size, distance_number

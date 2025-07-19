@@ -56,9 +56,32 @@ class EvaluationPathsSettings(BaseModel):
     output_file: str = "{api_caller_input_file}"
 
 
-class EvaluationScoringSettings(BaseModel):
+class EvaluationEEDSettings(BaseModel):
     initial_score: int = 60
     scoring_slope: int = 100
+    insert_cost: dict[str, int] = {
+        "number": 1,
+        "symbol": 1,
+        "operator": 1,
+        "function": 1,
+    }
+    delete_cost: dict[str, int] = {
+        "number": 1,
+        "symbol": 1,
+        "operator": 1,
+        "function": 1,
+    }
+    update_cost: dict[str, int] = {
+        "number": 1,
+        "symbol": 1,
+        "operator": 1,
+        "function": 1,
+    }
+    change_type_cost: int = 1
+    bar_size: int = 5
+    discount_slope: float = 0.6
+    simplify_time_limit: int = 30
+    equals_time_limit: int = 10
 
 
 class EvaluationExecutionSettings(BaseModel):
@@ -67,7 +90,7 @@ class EvaluationExecutionSettings(BaseModel):
 
 class EvaluationSettings(BaseModel):
     paths: EvaluationPathsSettings
-    scoring: EvaluationScoringSettings
+    eed: EvaluationEEDSettings
     execution: EvaluationExecutionSettings
 
 

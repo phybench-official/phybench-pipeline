@@ -13,6 +13,7 @@ from tabulate import tabulate
 from phybench.config_loader import get_settings
 from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
+from phybench.settings import EvaluationEEDSettings
 
 from .expression_distance import EED
 
@@ -33,19 +34,19 @@ def worker_init(log_file: str, file_level: str, console_level: str) -> None:
     setup_logging(log_file, file_level, console_level)
 
 
-def process_single_problem(data: dict[str, Any]) -> list[Any]:
+def process_single_problem(
+    data: dict[str, Any], eed_settings: EvaluationEEDSettings
+) -> list[Any]:
     global progress, processing_lis, processed_list
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
     problem_id = data["id"]
 
-    scoring_pars = data["scoring_pars"]
-
     t0 = time.time()
 
     score, relative_distance, treesize, distance_num = EED(
-        right_ans, ai_ans, scoring_parameters=scoring_pars, debug_mode=False
+        right_ans, ai_ans, eed_settings=eed_settings, debug_mode=False
     )
     t1 = time.time()
 
@@ -60,14 +61,12 @@ def evaluate(
     gt_file: str,
     model_answers_file: str,
     output_file: str,
-    scoring_parameters: list[int],
+    eed_settings: EvaluationEEDSettings,
     log_file: str = "logs/evaluation.log",
     file_log_level: str = "DEBUG",
     console_log_level: str = "INFO",
 ) -> str:
     logger.info("Starting evaluation...")
-    if not scoring_parameters:
-        raise ValueError("Scoring parameters must be provided and cannot be empty")
 
     with open(model_answers_file, encoding="utf-8") as f:
         model_answers = json.load(f)
@@ -115,7 +114,6 @@ def evaluate(
                         "model": model,
                         "model_answer": model_answer,
                         "right_answer": right_answer,
-                        "scoring_pars": scoring_parameters,
                     }
                 )
 
@@ -131,7 +129,9 @@ def evaluate(
         initializer=worker_init,
         initargs=(log_file, file_log_level, console_log_level),
     ) as pool:
-        results = pool.map(process_single_problem, work_list)
+        results = pool.starmap(
+            process_single_problem, [(item, eed_settings) for item in work_list]
+        )
 
     t1 = time.time()
     logger.info(f"Evaluation finished, total time: {t1 - t0:.2f}s")
@@ -263,18 +263,6 @@ def main() -> None:
         help="Log filename template",
     )
     parser.add_argument(
-        "--initial-score",
-        type=int,
-        default=settings.evaluation.scoring.initial_score,
-        help="Base score assigned before distance penalty (higher = more lenient, range: 0-100)",
-    )
-    parser.add_argument(
-        "--scoring-slope",
-        type=int,
-        default=settings.evaluation.scoring.scoring_slope,
-        help="Scaling factor for expression distance penalty (higher = steeper penalty curve)",
-    )
-    parser.add_argument(
         "--num-processes",
         type=int,
         default=settings.evaluation.execution.num_processes,
@@ -325,23 +313,11 @@ def main() -> None:
     output_file_path = resolver.get_evaluation_output_file()
     log_file_path = resolver.get_log_file()
 
-    scoring_params = [final_args.initial_score, final_args.scoring_slope]
-
-    logger.info("🎯 Starting evaluation process:")
-    logger.info(f"  - Ground truth file: {gt_file_path}")
-    logger.info(f"  - Model answers file: {model_answers_file_path}")
-    logger.info(f"  - Output file: {output_file_path}")
-    logger.info(f"  - Log file: {log_file_path}")
-    logger.info(f"  - Scoring parameters: {scoring_params}")
-    logger.info(
-        f"  - Processes: {final_args.num_processes if final_args.num_processes > 0 else 'auto-detect'}"
-    )
-
     evaluate(
         str(gt_file_path),
         str(model_answers_file_path),
         str(output_file_path),
-        scoring_params,
+        settings.evaluation.eed,
         str(log_file_path),
         settings.logging.file_level,
         settings.logging.console_level,

@@ -92,11 +92,27 @@ output_dir = "data/evaluation_results"
 #   {api_caller_output_file} - Output filename from API caller
 output_file = "test.json"
 
-[evaluation.scoring]
+[evaluation.eed]
 # Base score assigned before distance penalty (higher = more lenient, range: 0-100)
 initial_score = 60
 # Scaling factor for expression distance penalty (higher = steeper penalty curve)
 scoring_slope = 100
+# Cost for inserting a node in the expression tree
+insert_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
+# Cost for deleting a node in the expression tree
+delete_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
+# Cost for updating a node in the expression tree
+update_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
+# Cost for changing the type of a node (e.g., from a number to a symbol)
+change_type_cost = 1
+# The minimum size of a subtree to trigger a cluster discount
+bar_size = 5
+# The slope of the discount for large subtrees
+discount_slope = 0.6
+# Time limit for simplifying expressions in seconds
+simplify_time_limit = 30
+# Time limit for checking equality of expressions in seconds
+equals_time_limit = 10
 
 [evaluation.execution]
 # Number of CPU cores to use (0 = auto-detect)
