@@ -70,6 +70,7 @@ def evaluate(
     model_answers_file: str,
     output_file: str,
     eed_settings: EvaluationEEDSettings,
+    skip_problem_ids: list[int],
     log_file: str = "logs/evaluation.log",
     file_log_level: str = "DEBUG",
     console_log_level: str = "INFO",
@@ -107,7 +108,8 @@ def evaluate(
     work_list: list[WorkItem] = []
 
     for answers in gt[:]:
-        if answers["id"] == 108:  # wrong problem, skip it
+        if answers["id"] in skip_problem_ids:
+            logger.info(f"Skipping problem with ID: {answers['id']}")
             continue
         for model in model_list:
             id_number = answers["id"]
@@ -326,6 +328,7 @@ def main() -> None:
         str(model_answers_file_path),
         str(output_file_path),
         settings.evaluation.eed,
+        settings.evaluation.execution.skip_problem_ids,
         str(log_file_path),
         settings.logging.file_level,
         settings.logging.console_level,

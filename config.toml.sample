@@ -117,6 +117,8 @@ equals_time_limit = 10
 [evaluation.execution]
 # Number of CPU cores to use (0 = auto-detect)
 num_processes = 0
+# A list of problem IDs to skip during evaluation
+skip_problem_ids = [108]
 
 
 # -------------------------------- logging -------------------------------- #

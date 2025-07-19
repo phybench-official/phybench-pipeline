@@ -86,6 +86,7 @@ class EvaluationEEDSettings(BaseModel):
 
 class EvaluationExecutionSettings(BaseModel):
     num_processes: int = 0
+    skip_problem_ids: list[int] = []
 
 
 class EvaluationSettings(BaseModel):
