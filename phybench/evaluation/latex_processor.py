@@ -343,7 +343,7 @@ def extract_last_equal_content(s: str, strip_whitespace: bool = True) -> str:
     Extract the content after the last occurrence of specific mathematical comparison or assignment operators.
 
     :param strip_whitespace: If True, removes leading and trailing whitespace from the extracted content. Defaults to True.
-    (e.g., '=', '\\approx', '\\ge', '\\le', etc.) within the input string `s`. It then extracts
+    (e.g., '=', '\\approx', '\\ge', '\\leq', etc.) within the input string `s`. It then extracts
     and returns the content that follows the operator. If no operator is found, the entire string
     is returned. Optionally, leading and trailing whitespace can be stripped from the extracted content.
 
