@@ -92,8 +92,6 @@ def process_single_problem(
             "answer": ai_ans,
             "error": str(e),
         }
-
-    logger.info(f"Evaluated {model_name}. Problem id: {data['id']: >3}")
     result: EvaluationResult = {
         "model_name": model_name,
         "score": score,
