@@ -42,6 +42,15 @@ class WorkItem(TypedDict):
     right_answer: str
 
 
+class EvaluationResult(TypedDict):
+    model_name: str
+    score: float
+    problem_id: int
+    relative_distance: float
+    treesize: float
+    distance_num: float
+
+
 progress = 0
 
 
@@ -56,7 +65,7 @@ def worker_init(log_file: str, file_level: str, console_level: str) -> None:
 
 def process_single_problem(
     data: WorkItem, eed_settings: EvaluationEEDSettings
-) -> tuple[list[Any], dict[str, Any] | None]:
+) -> tuple[EvaluationResult, dict[str, Any] | None]:
     """Processes a single problem, returning score and any parsing errors."""
     model_name = data["model"]
     ai_ans = data["model_answer"]
@@ -84,7 +93,15 @@ def process_single_problem(
             "error": str(e),
         }
 
-    result = [model_name, score, problem_id, relative_distance, treesize, distance_num]
+    logger.info(f"Evaluated {model_name}. Problem id: {data['id']: >3}")
+    result: EvaluationResult = {
+        "model_name": model_name,
+        "score": score,
+        "problem_id": problem_id,
+        "relative_distance": relative_distance,
+        "treesize": treesize,
+        "distance_num": distance_num,
+    }
     return result, error_info
 
 
@@ -211,12 +228,12 @@ def evaluate(
 
     dist_data = []
     for result in successful_results:
-        model = result[0]
-        score_i = result[1]
-        problem_id = result[2]
-        rel_dist = result[3]
-        tree_size = result[4]
-        distance_number = result[5]
+        model = result["model_name"]
+        score_i = result["score"]
+        problem_id = result["problem_id"]
+        rel_dist = result["relative_distance"]
+        tree_size = result["treesize"]
+        distance_number = result["distance_num"]
 
         model_scores[model] += score_i
         model_nums[model] += 1
