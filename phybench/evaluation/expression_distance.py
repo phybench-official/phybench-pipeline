@@ -88,7 +88,7 @@ def insert_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
     return remove_tree_func(x, eed_settings)
 
 
-def calc_tree_size(node: TreeNode, eed_settings: EvaluationEEDSettings) -> int:
+def calc_tree_size(node: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
     """
     Calculate the size of a subtree based on its total insertion cost.
     The function computes the size of a subtree by summing up the insertion
@@ -127,7 +127,7 @@ Scoring function from relative distance
 
 
 def score_calc(
-    tree_dist: float, tree_size: int, eed_settings: EvaluationEEDSettings
+    tree_dist: float, tree_size: float, eed_settings: EvaluationEEDSettings
 ) -> float:
     if tree_dist == 0.0:
         return 100
@@ -285,7 +285,7 @@ class TreeNode:
         self.label = label
         self.children = children if children is not None else []
         self.node_type = node_type
-        self.subtree_size = 0
+        self.subtree_size: float = 0.0
 
     def get_children(self) -> list[TreeNode]:
         return self.children
@@ -326,7 +326,7 @@ def EED(
     test_latex: str,
     eed_settings: EvaluationEEDSettings,
     debug_mode: bool = False,
-) -> tuple[float, float, int, float]:
+) -> tuple[float, float, float, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
     This function evaluates the equivalence of two mathematical expressions represented

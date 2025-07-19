@@ -57,28 +57,28 @@ class EvaluationPathsSettings(BaseModel):
 
 
 class EvaluationEEDSettings(BaseModel):
-    initial_score: int = 60
-    scoring_slope: int = 100
-    insert_cost: dict[str, int] = {
-        "number": 1,
-        "symbol": 1,
-        "operator": 1,
-        "function": 1,
+    initial_score: float = 60.0
+    scoring_slope: float = 100.0
+    insert_cost: dict[str, float] = {
+        "number": 1.0,
+        "symbol": 1.0,
+        "operator": 1.0,
+        "function": 1.0,
     }
-    delete_cost: dict[str, int] = {
-        "number": 1,
-        "symbol": 1,
-        "operator": 1,
-        "function": 1,
+    delete_cost: dict[str, float] = {
+        "number": 1.0,
+        "symbol": 1.0,
+        "operator": 1.0,
+        "function": 1.0,
     }
-    update_cost: dict[str, int] = {
-        "number": 1,
-        "symbol": 1,
-        "operator": 1,
-        "function": 1,
+    update_cost: dict[str, float] = {
+        "number": 1.0,
+        "symbol": 1.0,
+        "operator": 1.0,
+        "function": 1.0,
     }
-    change_type_cost: int = 1
-    bar_size: int = 5
+    change_type_cost: float = 1.0
+    bar_size: float = 5.0
     discount_slope: float = 0.6
     simplify_time_limit: int = 30
     equals_time_limit: int = 10
