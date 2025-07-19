@@ -5,7 +5,7 @@ import json
 import multiprocessing
 import time
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, TypedDict
 
 from loguru import logger
 from tabulate import tabulate
@@ -22,6 +22,14 @@ __all__: Final[list[str]] = [
     "main",
 ]
 
+
+class WorkItem(TypedDict):
+    id: int
+    model: str
+    model_answer: str
+    right_answer: str
+
+
 progress = 0
 
 
@@ -35,7 +43,7 @@ def worker_init(log_file: str, file_level: str, console_level: str) -> None:
 
 
 def process_single_problem(
-    data: dict[str, Any], eed_settings: EvaluationEEDSettings
+    data: WorkItem, eed_settings: EvaluationEEDSettings
 ) -> list[Any]:
     global progress, processing_lis, processed_list
     model_name = data["model"]
@@ -96,7 +104,7 @@ def evaluate(
 
         model_answers_dict[(data["id"], data["model"])] = data
 
-    work_list = []
+    work_list: list[WorkItem] = []
 
     for answers in gt[:]:
         if answers["id"] == 108:  # wrong problem, skip it
@@ -109,12 +117,12 @@ def evaluate(
                 right_answer = gt_dict[id_number]["answer"]
 
                 work_list.append(
-                    {
-                        "id": id_number,
-                        "model": model,
-                        "model_answer": model_answer,
-                        "right_answer": right_answer,
-                    }
+                    WorkItem(
+                        id=id_number,
+                        model=model,
+                        model_answer=model_answer,
+                        right_answer=right_answer,
+                    )
                 )
 
     logger.info(f"Successfully built worklist, total length: {len(work_list)}")
