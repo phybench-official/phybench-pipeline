@@ -197,24 +197,26 @@ def with_timeout(timeout_seconds: float) -> Callable[[F], F]:
     return decorator
 
 
-def simplify_with_timeout(expr: Any) -> Any:
-    @with_timeout(30)
+def simplify_with_timeout(expr: Any, timeout: float) -> Any:
+    @with_timeout(timeout)
     def _simplify(expr: Any) -> Any:
         return simplify(expr)
 
     return _simplify(expr)
 
 
-def time_simplify(expr: Any) -> Any:
+def time_simplify(expr: Any, timeout: float) -> Any:
+    logger = get_logger(__name__)
     try:
-        result = simplify_with_timeout(expr)
+        result = simplify_with_timeout(expr, timeout)
         return result
     except TimeoutError:
+        logger.warning(f"Simplification timed out for expression: {expr}")
         return expr
 
 
-def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
-    @with_timeout(10)
+def equal_with_timeout(expr1: Any, expr2: Any, timeout: float) -> bool:
+    @with_timeout(timeout)
     def _equals(expr1: Any, expr2: Any) -> bool:
         return bool(expr1.equals(expr2))
 
@@ -222,9 +224,9 @@ def equal_with_timeout(expr1: Any, expr2: Any) -> bool:
     return bool(result) if result is not None else False
 
 
-def time_equal(expr1: Any, expr2: Any) -> bool:
+def time_equal(expr1: Any, expr2: Any, timeout: float) -> bool:
     try:
-        result = equal_with_timeout(expr1, expr2)
+        result = equal_with_timeout(expr1, expr2, timeout)
         return result
     except TimeoutError:
         return False
@@ -349,6 +351,7 @@ def EED(
     test_latex: str,
     scoring_parameters: list[int],
     debug_mode: bool = False,
+    simplify_timeout: float = 30,
 ) -> tuple[float, float, int, float]:
     """
     Computes the similarity score and distance metrics between two LaTeX expressions.
@@ -414,20 +417,24 @@ def EED(
 
     try:
         answer_exp, rep1 = posify(answer_exp)
-        answer_exp = time_simplify(answer_exp)
+        answer_exp = time_simplify(answer_exp, timeout=simplify_timeout)
 
         test_exp, rep2 = posify(test_exp)
-        test_exp = time_simplify(test_exp)
+        test_exp = time_simplify(test_exp, timeout=simplify_timeout)
 
         answer_exp = answer_exp.subs(rep1)
         test_exp = test_exp.subs(rep2)
 
-        zero_exp = time_simplify(expand(answer_exp - test_exp))
+        zero_exp = time_simplify(
+            expand(answer_exp - test_exp), timeout=simplify_timeout
+        )
 
         if answer_exp == test_exp or zero_exp == 0:
             return 100, 0.0, 0, 0
 
-        if time_equal(answer_exp, test_exp):
+        if time_equal(
+            answer_exp, test_exp, timeout=simplify_timeout / 3
+        ):  # equality check with a shorter timeout
             return 100, 0.0, 0, 0
 
     except Exception as e:
