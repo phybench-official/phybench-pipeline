@@ -4,12 +4,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from loguru import logger
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.completion_usage import CompletionUsage
 from tqdm import tqdm
-
-from phybench.logging_config import get_logger
 
 _NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
 
@@ -40,7 +39,6 @@ def read_problems(filename: str) -> list[dict[str, Any]]:
         A list of dictionaries, where each dictionary represents a problem.
     """
 
-    logger = get_logger(__name__)
     try:
         with open(filename, encoding="utf-8") as f:
             data = json.load(f)
@@ -106,7 +104,6 @@ async def write_solution(solution: dict[str, Any], output_filename: str) -> bool
         True if write was successful, False otherwise.
     """
 
-    logger = get_logger(__name__)
     max_retries = 3
 
     for attempt in range(max_retries):
@@ -286,7 +283,6 @@ async def process_problem(
         The solution dictionary that was generated and written.
     """
 
-    logger = get_logger(__name__)
     problem_id = problem.get("id", "N/A")
     status_msg_key = f"problem {problem_id}" + (
         f" (attempt {repeat_idx + 1})" if repeat_idx is not None else ""

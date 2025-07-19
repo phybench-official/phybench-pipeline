@@ -1,18 +1,24 @@
 """
 Centralized logging configuration for PhyBench Pipeline.
 
-This module provides a configured loguru logger instance that outputs to both
-console and file with appropriate formatting and rotation.
+This module provides a function to configure the global loguru logger.
 """
 
 import sys
 from pathlib import Path
-from typing import Any
 
 from loguru import logger
 
 # Remove default handler to prevent duplication
-logger.remove()
+# logger.remove()
+
+# Basic console logger initialized by default
+# logger.add(
+#     sys.stdout,
+#     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
+#     level="INFO",
+#     colorize=True,
+# )
 
 
 def setup_logging(
@@ -38,7 +44,9 @@ def setup_logging(
     # Ensure log directory exists
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
+    # Remove any existing handlers to prevent duplication
     logger.remove()
+
     # Console logging with color and higher level filtering
     console_log_level = console_level or log_level
     logger.add(
@@ -79,22 +87,3 @@ def setup_logging(
     logger.info(f"Logging initialized - Level: {log_level}")
     if log_file:
         logger.info(f"Log file: {Path(log_file).absolute()}")
-
-
-def get_logger(name: str | None = None) -> Any:
-    """
-    Get a logger instance with optional name binding.
-
-    Args:
-        name: Logger name (usually __name__)
-
-    Returns:
-        Configured logger instance
-    """
-    if name:
-        return logger.bind(name=name)
-    return logger
-
-
-# Module-level logger instance
-log = logger

@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any, Final, TypeVar, overload
 
 import sympy
+from loguru import logger
 from sympy import (
     Add,
     Float,
@@ -27,8 +28,6 @@ from sympy import (
 from sympy import (
     pi as Pi,
 )
-
-from phybench.logging_config import get_logger
 
 from .latex_processor import master_convert
 from .tree_distance import ext_distance
@@ -206,7 +205,6 @@ def simplify_with_timeout(expr: Any, timeout: float) -> Any:
 
 
 def time_simplify(expr: Any, timeout: float) -> Any:
-    logger = get_logger(__name__)
     try:
         result = simplify_with_timeout(expr, timeout)
         return result
@@ -258,7 +256,6 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         >>> print(tree)
     """
     # Symbols and constants
-    logger = get_logger(__name__)
     if isinstance(expr, Integer | Float | Rational) or expr in (
         Pi,
         EulerNumber,
@@ -320,7 +317,6 @@ class TreeNode:
 
 def print_tree(node: TreeNode, indent: int = 0) -> None:
     """Print a tree structure"""
-    logger = get_logger(__name__)
     logger.debug("  " * indent + f"└─ {node.label}")
     for child in node.children:
         print_tree(child, indent + 1)
@@ -388,8 +384,6 @@ def EED(
             - answer_tree_size (int): The size of the expression tree for the answer.
             - distance (float): The raw distance between the two expression trees.
     """
-
-    logger = get_logger(__name__)
 
     if not test_latex:
         return 0, -1, -1, -1

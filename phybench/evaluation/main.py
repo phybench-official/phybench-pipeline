@@ -7,10 +7,11 @@ import time
 from pathlib import Path
 from typing import Any, Final
 
+from loguru import logger
 from tabulate import tabulate
 
 from phybench.config_loader import get_settings
-from phybench.logging_config import get_logger, setup_logging
+from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
 
 from .expression_distance import EED
@@ -29,7 +30,6 @@ processed_list: list[Any] = []
 
 def process_single_problem(data: dict[str, Any]) -> list[Any]:
     global progress, processing_lis, processed_list
-    logger = get_logger(__name__)
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
@@ -45,7 +45,7 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
     t1 = time.time()
 
     logger.info(
-        f"Finished evaluating {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s\n"
+        f"Evaluated {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s"
     )
 
     return [model_name, score, problem_id, relative_distance, treesize, distance_num]
@@ -58,7 +58,6 @@ def evaluate(
     scoring_parameters: list[int],
     log_file: str = "logs/evaluation.log",
 ) -> str:
-    logger = get_logger(__name__)
     logger.info("Starting evaluation...")
     if not scoring_parameters:
         raise ValueError("Scoring parameters must be provided and cannot be empty")
@@ -181,8 +180,7 @@ def evaluate(
     s_opt = tabulate(
         output_table, headers=["Model", "Score"], tablefmt="fancy_grid", floatfmt=".2f"
     )
-    logger.info("Evaluation results:")
-    logger.info(f"\n{s_opt}")
+    logger.info(f"Evaluation results:\n{s_opt}")
 
     logger.success("Evaluation complete!")
 
@@ -190,8 +188,6 @@ def evaluate(
 
 
 def main() -> None:
-    setup_logging(log_file="logs/evaluation.log")
-    logger = get_logger(__name__)
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "--config-file",

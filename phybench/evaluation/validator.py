@@ -5,10 +5,7 @@ from typing import Final
 
 from expression_distance import master_convert, sympy_to_tree
 from latex_processor import *  # noqa: F403, F401
-
-from phybench.logging_config import get_logger
-
-logger = get_logger(__name__)
+from loguru import logger
 
 # 读取 Excel 文件（默认读取第一个工作表）
 file_path: Final[str] = "./data/model_solutions/test_gpt-4o.json"
