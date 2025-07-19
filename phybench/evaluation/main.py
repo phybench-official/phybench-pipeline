@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Final, TypedDict
 
 from loguru import logger
+from pydantic import BaseModel, ValidationError
 from tabulate import tabulate
 
 from phybench.config_loader import get_settings
@@ -21,6 +22,17 @@ __all__: Final[list[str]] = [
     "evaluate",
     "main",
 ]
+
+
+class GroundTruthItem(BaseModel):
+    id: int
+    answer: str
+
+
+class ModelAnswerItem(BaseModel):
+    id: int
+    model: str
+    model_answer: str
 
 
 class WorkItem(TypedDict):
@@ -88,37 +100,55 @@ def evaluate(
 ) -> str:
     logger.info("Starting evaluation...")
 
-    with open(model_answers_file, encoding="utf-8") as f:
-        model_answers = json.load(f)
+    try:
+        with open(model_answers_file, encoding="utf-8") as f:
+            model_answers_data = json.load(f)
+            # Validate but keep original dicts to preserve all fields
+            for item in model_answers_data:
+                ModelAnswerItem.model_validate(item)
 
-    with open(gt_file, encoding="utf-8") as f:
-        gt = json.load(f)
+        with open(gt_file, encoding="utf-8") as f:
+            gt_data = json.load(f)
+            # Validate but keep original dicts to preserve all fields
+            for item in gt_data:
+                GroundTruthItem.model_validate(item)
 
-    # Here on we will start updating gt and finally output it
-    gt_dict = {}
-    for data in gt:
-        if "model" in data:
-            del data["model"]
-        data["models"] = []
-        data["model_score"] = []
-        data["model_answer"] = []
-        data["model_distance"] = []
-        data["model_score_var"] = 0
-        data["answer_size"] = 0
-        gt_dict[data["id"]] = data
+    except FileNotFoundError as e:
+        logger.error(f"Input file not found: {e}")
+        return "Error: Input file not found."
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode JSON from a file: {e}")
+        return "Error: Invalid JSON format."
+    except ValidationError as e:
+        logger.error(f"Input data validation failed:\n{e}")
+        return "Error: Input data validation failed."
 
-    model_list = []
-    model_answers_dict = {}
-    for data in model_answers:
-        name = data["model"]
-        if name not in model_list:
-            model_list.append(name)
+    gt_dict: dict[int, dict[str, Any]] = {}
+    for item in gt_data:
+        gt_dict[item["id"]] = item
+        if "model" in item:
+            del item["model"]
+        gt_dict[item["id"]].update(
+            {
+                "models": [],
+                "model_score": [],
+                "model_answer": [],
+                "model_distance": [],
+                "model_score_var": 0,
+                "answer_size": 0,
+            }
+        )
 
-        model_answers_dict[(data["id"], data["model"])] = data
+    model_list: list[str] = []
+    model_answers_dict: dict[tuple[int, str], dict[str, Any]] = {}
+    for item in model_answers_data:
+        if item["model"] not in model_list:
+            model_list.append(item["model"])
+        model_answers_dict[(item["id"], item["model"])] = item
 
     work_list: list[WorkItem] = []
 
-    for answers in gt[:]:
+    for answers in gt_data:
         if answers["id"] in skip_problem_ids:
             logger.info(f"Skipping problem with ID: {answers['id']}")
             continue
@@ -126,7 +156,7 @@ def evaluate(
             id_number = answers["id"]
             query_answer = (id_number, model)
             if query_answer in model_answers_dict:
-                model_answer = model_answers_dict[(id_number, model)]["model_answer"]
+                model_answer = model_answers_dict[query_answer]["model_answer"]
                 right_answer = gt_dict[id_number]["answer"]
 
                 work_list.append(
@@ -203,21 +233,23 @@ def evaluate(
 
         dist_data.append(rel_dist)
 
-    for data in gt:
-        score_list = data["model_score"]
+    for data in gt_data:
+        score_list = gt_dict[data["id"]]["model_score"]
         if not score_list or len(score_list) <= 1:
             continue  # hide the variance if only one model
         avg_score = sum(score_list) / len(score_list)
         score_2 = 0
         for score in score_list:
             score_2 += (score - avg_score) ** 2
-        data["model_score_var"] = score_2 / len(score_list)
+        gt_dict[data["id"]]["model_score_var"] = score_2 / len(score_list)
 
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    final_gt_list = list(gt_dict.values())
+
     with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(gt, f, ensure_ascii=False, indent=4)
+        json.dump(final_gt_list, f, ensure_ascii=False, indent=4)
 
     output_table = []
     for model in model_scores:
