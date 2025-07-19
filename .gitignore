@@ -29,6 +29,7 @@ logs/
 *.tmp
 *.temp
 *.backup
+utils/
 
 # AI instructions
 .github/copilot-instructions.md
