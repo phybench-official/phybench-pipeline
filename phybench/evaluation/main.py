@@ -28,6 +28,11 @@ processing_lis: list[Any] = []
 processed_list: list[Any] = []
 
 
+def worker_init(log_file: str, file_level: str, console_level: str) -> None:
+    """Initialize logging for worker processes."""
+    setup_logging(log_file, file_level, console_level)
+
+
 def process_single_problem(data: dict[str, Any]) -> list[Any]:
     global progress, processing_lis, processed_list
     model_name = data["model"]
@@ -45,7 +50,7 @@ def process_single_problem(data: dict[str, Any]) -> list[Any]:
     t1 = time.time()
 
     logger.info(
-        f"Evaluated {model_name}. Problem id: {data['id']}, Time: {t1 - t0:.2f}s"
+        f"Evaluated {model_name}. Problem id: {data['id']: >3}, Time: {t1 - t0:.2f}s"
     )
 
     return [model_name, score, problem_id, relative_distance, treesize, distance_num]
@@ -57,6 +62,8 @@ def evaluate(
     output_file: str,
     scoring_parameters: list[int],
     log_file: str = "logs/evaluation.log",
+    file_log_level: str = "DEBUG",
+    console_log_level: str = "INFO",
 ) -> str:
     logger.info("Starting evaluation...")
     if not scoring_parameters:
@@ -109,7 +116,6 @@ def evaluate(
                         "model_answer": model_answer,
                         "right_answer": right_answer,
                         "scoring_pars": scoring_parameters,
-                        "log_file_path": log_file,
                     }
                 )
 
@@ -120,8 +126,12 @@ def evaluate(
     t0 = time.time()
     results = []
 
-    with multiprocessing.Pool(processes=cpu_cores) as pool:
-        results = list(pool.map(process_single_problem, work_list))
+    with multiprocessing.Pool(
+        processes=cpu_cores,
+        initializer=worker_init,
+        initargs=(log_file, file_log_level, console_log_level),
+    ) as pool:
+        results = pool.map(process_single_problem, work_list)
 
     t1 = time.time()
     logger.info(f"Evaluation finished, total time: {t1 - t0:.2f}s")
@@ -333,6 +343,8 @@ def main() -> None:
         str(output_file_path),
         scoring_params,
         str(log_file_path),
+        settings.logging.file_level,
+        settings.logging.console_level,
     )
 
 

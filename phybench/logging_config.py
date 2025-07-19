@@ -75,7 +75,7 @@ def setup_logging(
     if log_file:
         logger.add(
             log_file,
-            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {process}:{thread} | {name}:{function}:{line} | {message}",
+            format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {process}:{thread} | {name}:{function}:{line} | {message}",
             level=log_level,
             rotation="50 MB",
             retention="7 days",
@@ -84,6 +84,6 @@ def setup_logging(
             enqueue=True,  # Thread-safe logging
         )
 
-    logger.info(f"Logging initialized - Level: {log_level}")
-    if log_file:
-        logger.info(f"Log file: {Path(log_file).absolute()}")
+    # logger.info(f"Logging initialized - Level: {log_level}")
+    # if log_file:
+    #     logger.info(f"Log file: {Path(log_file).absolute()}")
