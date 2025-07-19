@@ -15,7 +15,7 @@ from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
 from phybench.settings import EvaluationEEDSettings
 
-from .expression_distance import EED
+from .expression_distance import EED, LaTeXError, SymPyError
 
 __all__: Final[list[str]] = [
     "evaluate",
@@ -44,25 +44,36 @@ def worker_init(log_file: str, file_level: str, console_level: str) -> None:
 
 def process_single_problem(
     data: WorkItem, eed_settings: EvaluationEEDSettings
-) -> list[Any]:
-    global progress, processing_lis, processed_list
+) -> tuple[list[Any], dict[str, Any] | None]:
+    """Processes a single problem, returning score and any parsing errors."""
     model_name = data["model"]
     ai_ans = data["model_answer"]
     right_ans = data["right_answer"]
     problem_id = data["id"]
 
-    t0 = time.time()
+    try:
+        t0 = time.time()
 
-    score, relative_distance, treesize, distance_num = EED(
-        right_ans, ai_ans, eed_settings=eed_settings, debug_mode=False
-    )
-    t1 = time.time()
+        score, relative_distance, treesize, distance_num = EED(
+            right_ans, ai_ans, eed_settings=eed_settings, debug_mode=True
+        )
+        t1 = time.time()
+        logger.info(
+            f"Evaluated {model_name}. Problem id: {data['id']: >3}, Time: {t1 - t0:.2f}s"
+        )
+        error_info = None
+    except (LaTeXError, SymPyError) as e:
+        logger.warning(f"Problem ID {problem_id}: Could not parse expression - {e}")
+        score, relative_distance, treesize, distance_num = 0, -1, -1, -1
+        error_info = {
+            "id": problem_id,
+            "model": model_name,
+            "answer": ai_ans,
+            "error": str(e),
+        }
 
-    logger.info(
-        f"Evaluated {model_name}. Problem id: {data['id']: >3}, Time: {t1 - t0:.2f}s"
-    )
-
-    return [model_name, score, problem_id, relative_distance, treesize, distance_num]
+    result = [model_name, score, problem_id, relative_distance, treesize, distance_num]
+    return result, error_info
 
 
 def evaluate(
@@ -146,6 +157,22 @@ def evaluate(
     t1 = time.time()
     logger.info(f"Evaluation finished, total time: {t1 - t0:.2f}s")
 
+    # Separate successful results from failed ones
+    successful_results = [item[0] for item in results]
+    failed_expressions = [item[1] for item in results if item[1] is not None]
+
+    # --- Write failed expressions to a separate file ---
+    if failed_expressions:
+        output_path = Path(output_file)
+        failed_output_filename = f"{output_path.stem}_wrong_expressions.json"
+        failed_output_path = output_path.with_name(failed_output_filename)
+        logger.warning(
+            f"{len(failed_expressions)} expressions failed to parse. "
+            f"See '{failed_output_path}' for details."
+        )
+        with open(failed_output_path, "w", encoding="utf-8") as f:
+            json.dump(failed_expressions, f, ensure_ascii=False, indent=4)
+
     model_scores: dict[str, float] = {}
     model_nums: dict[str, int] = {}
     for name in model_list:
@@ -153,7 +180,7 @@ def evaluate(
         model_nums[name] = 0
 
     dist_data = []
-    for result in results:
+    for result in successful_results:
         model = result[0]
         score_i = result[1]
         problem_id = result[2]
