@@ -16,4 +16,4 @@ def get_settings(config_file: str | Path) -> AppSettings:
 
     config_data: dict[str, Any] = toml.load(config_path)
 
-    return AppSettings.model_validate(config_data)  # type: ignore
+    return AppSettings.model_validate(config_data)
