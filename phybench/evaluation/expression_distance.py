@@ -377,13 +377,22 @@ def EED(
     try:
         answer_exp = master_convert(answer_latex)
         test_exp = master_convert(test_latex)
-    except Exception as e:
+    except (SyntaxError, ValueError, TypeError) as e:
         logger.warning(
-            f"Failed to convert latex to sympy expression: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+            f"Failed to convert latex due to a known parsing error: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
         )
         if debug_mode:
             raise LaTeXError(
                 f"Fail to convert latex.\n GT:{answer_latex}\n GEN:{test_latex}"
+            ) from e
+        return 0, -1, -1, -1
+    except Exception as e:
+        logger.error(
+            f"An UNEXPECTED error occurred during latex conversion: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+        )
+        if debug_mode:
+            raise LaTeXError(
+                "An unexpected error occurred during latex conversion."
             ) from e
         return 0, -1, -1, -1
 
@@ -409,7 +418,7 @@ def EED(
         ):  # equality check with a shorter timeout
             return 100, 0.0, 0, 0
 
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         logger.warning(
             f"Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
         )
@@ -418,18 +427,36 @@ def EED(
                 f"Failed to simplify the sympy expression. Error: {e}"
             ) from e
         return 0, -1, -1, -1
+    except Exception as e:
+        logger.error(
+            f"An UNEXPECTED error occurred during expression simplification: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+        )
+        if debug_mode:
+            raise SymPyError(
+                "An unexpected error occurred during expression simplification."
+            ) from e
+        return 0, -1, -1, -1
 
     try:
         tree_answer = sympy_to_tree(answer_exp)
         tree_test = sympy_to_tree(test_exp)
 
-    except Exception as e:
+    except ValueError as e:
         logger.warning(
             f"Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', GEN='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
                 f"Failed to build the sympy expression tree.\nGT:{answer_exp}\nGEN:{test_exp}"
+            ) from e
+        return 0, -1, -1, -1
+    except Exception as e:
+        logger.error(
+            f"An UNEXPECTED error occurred during tree construction: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+        )
+        if debug_mode:
+            raise SymPyError(
+                "An unexpected error occurred during tree construction."
             ) from e
         return 0, -1, -1, -1
 
@@ -454,11 +481,22 @@ def EED(
             remove_cost=lambda x: remove_tree_func(x, eed_settings),
             update_cost=lambda x, y: update_func(x, y, eed_settings),
         )
-    except Exception as e:
-        logger.error(f"Failed to calculate distance: {type(e).__name__}: {e}")
+    except RecursionError as e:
+        logger.warning(
+            f"Failed to calculate distance due to recursion depth: {type(e).__name__}: {e}"
+        )
         if debug_mode:
             raise DistError(
                 f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"
+            ) from e
+        return 0, -1, calc_tree_size(tree_answer, eed_settings), -1
+    except Exception as e:
+        logger.error(
+            f"An UNEXPECTED error occurred during distance calculation: {type(e).__name__}: {e}"
+        )
+        if debug_mode:
+            raise DistError(
+                "An unexpected error occurred during distance calculation."
             ) from e
         return 0, -1, calc_tree_size(tree_answer, eed_settings), -1
     tree_size = calc_tree_size(tree_answer, eed_settings)
