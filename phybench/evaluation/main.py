@@ -73,12 +73,12 @@ def process_single_problem(
     problem_id = data["id"]
 
     try:
-        t0 = time.time()
+        t0 = time.perf_counter()
 
         score, relative_distance, treesize, distance_num = EED(
             right_ans, ai_ans, eed_settings=eed_settings, debug_mode=True
         )
-        t1 = time.time()
+        t1 = time.perf_counter()
         logger.info(
             f"Evaluated {model_name}. Problem id: {data['id']: >3}, Time: {t1 - t0:.2f}s"
         )
@@ -187,7 +187,7 @@ def evaluate(
 
     cpu_cores = multiprocessing.cpu_count()
     logger.info(f"Available CPU cores for evaluation: {cpu_cores}")
-    t0 = time.time()
+    t0 = time.perf_counter()
     results = []
 
     with multiprocessing.Pool(
@@ -199,7 +199,7 @@ def evaluate(
             process_single_problem, [(item, eed_settings) for item in work_list]
         )
 
-    t1 = time.time()
+    t1 = time.perf_counter()
     logger.info(f"Evaluation finished, total time: {t1 - t0:.2f}s")
 
     # Separate successful results from failed ones
