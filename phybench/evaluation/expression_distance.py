@@ -460,16 +460,6 @@ def EED(
             ) from e
         return 0, -1, -1, -1
 
-    distance = ext_distance(
-        tree_test,
-        tree_answer,
-        get_children=lambda x: x.get_children(),
-        single_insert_cost=lambda x: insert_func(x, eed_settings),
-        insert_cost=lambda x: insert_tree_func(x, eed_settings),
-        single_remove_cost=lambda x: remove_func(x, eed_settings),
-        remove_cost=lambda x: remove_tree_func(x, eed_settings),
-        update_cost=lambda x, y: update_func(x, y, eed_settings),
-    )
     try:
         distance = ext_distance(
             tree_test,
