@@ -4,7 +4,7 @@ import json
 import multiprocessing
 import time
 from pathlib import Path
-from typing import Any, Final, TypedDict
+from typing import Annotated, Any, Final, TypedDict
 
 import typer
 from loguru import logger
@@ -22,7 +22,7 @@ __all__: Final[list[str]] = [
     "evaluate",
 ]
 
-app = typer.Typer()
+app: typer.Typer = typer.Typer()
 
 
 class GroundTruthItem(BaseModel):
@@ -282,46 +282,60 @@ def evaluate(
     return s_opt
 
 
-@app.command()
+@app.command()  # type: ignore
 def main(
-    config_file: Path = typer.Option(
-        "config.toml",
-        "--config-file",
-        "-c",
-        help="Path to the configuration file (e.g., config.toml)",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-    ),
-    gt_dir: Path | None = typer.Option(
-        None, help="Directory containing ground truth files."
-    ),
-    gt_file: str | None = typer.Option(None, help="Ground truth filename."),
-    model_answers_dir: Path | None = typer.Option(
-        None, help="Directory containing model answer files."
-    ),
-    model_answers_file: str | None = typer.Option(None, help="Model answers filename."),
-    output_dir: Path | None = typer.Option(None, help="Output directory."),
-    output_file: str | None = typer.Option(None, help="Output filename template."),
-    log_dir: Path | None = typer.Option(None, help="Log directory."),
-    log_file: str | None = typer.Option(None, help="Log filename template."),
-    num_processes: int | None = typer.Option(
-        None, help="Number of processes to use (0 = auto-detect)."
-    ),
-    model: str | None = typer.Option(
-        None,
-        help="Model name to evaluate (just for filename template resolution).",
-    ),
-    api_caller_input_file: str | None = typer.Option(
-        None,
-        help="Input file in api caller (just for filename template resolution).",
-    ),
-    api_caller_output_file: str | None = typer.Option(
-        None,
-        help="Output file for API caller (just for filename template resolution).",
-    ),
+    config_file: Annotated[
+        Path,
+        typer.Option(
+            "--config-file",
+            "-c",
+            help="Path to the configuration file (e.g., config.toml)",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("config.toml"),
+    gt_dir: Annotated[
+        Path | None,
+        typer.Option(help="Directory containing ground truth files."),
+    ] = None,
+    gt_file: Annotated[str | None, typer.Option(help="Ground truth filename.")] = None,
+    model_answers_dir: Annotated[
+        Path | None,
+        typer.Option(help="Directory containing model answer files."),
+    ] = None,
+    model_answers_file: Annotated[
+        str | None, typer.Option(help="Model answers filename.")
+    ] = None,
+    output_dir: Annotated[Path | None, typer.Option(help="Output directory.")] = None,
+    output_file: Annotated[
+        str | None, typer.Option(help="Output filename template.")
+    ] = None,
+    log_dir: Annotated[Path | None, typer.Option(help="Log directory.")] = None,
+    log_file: Annotated[str | None, typer.Option(help="Log filename template.")] = None,
+    num_processes: Annotated[
+        int | None, typer.Option(help="Number of processes to use (0 = auto-detect).")
+    ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option(
+            help="Model name to evaluate (just for filename template resolution)."
+        ),
+    ] = None,
+    api_caller_input_file: Annotated[
+        str | None,
+        typer.Option(
+            help="Input file in api caller (just for filename template resolution)."
+        ),
+    ] = None,
+    api_caller_output_file: Annotated[
+        str | None,
+        typer.Option(
+            help="Output file for API caller (just for filename template resolution)."
+        ),
+    ] = None,
 ) -> None:
     """
     Evaluate model answers against ground truth using EED scoring.
@@ -335,7 +349,7 @@ def main(
             logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
             )
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     # Override settings with CLI options if provided
     if gt_dir:
