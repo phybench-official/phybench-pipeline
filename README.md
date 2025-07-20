@@ -82,8 +82,8 @@ cp config.toml.sample config.toml
 - `[api_caller.paths]`: Input/output paths (input_file, output_dir)
 - `[api_caller.execution]`: Processing settings (num_consumers, chat_timeout, repeat_count, max_retries)
 - `[evaluation.paths]`: Ground truth and model answer files (gt_file, model_answers_file, output_file, log_file)
-- `[evaluation.scoring]`: Scoring parameters (initial_score, scoring_slope)
-- `[evaluation.execution]`: Processing settings (num_processes)
+- `[evaluation.eed]`: Parameters for the Expression Edit Distance algorithm
+- `[evaluation.execution]`: Processing settings (num_processes, skip_problem_ids)
 - `[logging]`: Logging settings (log_dir, log_file, console_level, file_level)
 
 ### Usage
@@ -166,11 +166,15 @@ uv run pytest
 
 ## Scoring System
 
-The evaluation uses Expression Edit Distance (EED) with configurable parameters:
-- **Initial Score**: Base score before distance penalty (default: 60)
-- **Scoring Slope**: Penalty rate for expression differences (default: 100)
+The evaluation uses Expression Edit Distance (EED). The scoring behavior is highly configurable via the `[evaluation.eed]` section of your `config.toml` file.
 
-Score formula: `max(0, initial_score - scoring_slope × (distance / tree_size))`
+- **`initial_score`**: Base score before any distance penalty is applied (e.g., 100.0).
+- **`scoring_slope`**: A multiplier for the distance penalty. Higher values mean a steeper penalty curve.
+- **`insert_cost`**, **`delete_cost`**, **`update_cost`**: Dictionaries defining the cost for tree operations (insertion, deletion, update) on different node types (number, symbol, operator, function).
+- **`change_type_cost`**: The cost for updating a node to a different type (e.g., number to symbol).
+- **`simplify_time_limit`**, **`equals_time_limit`**: Timeouts in seconds for symbolic simplification and equality checks to prevent excessively long computations.
+
+The final score is calculated as: `max(0, initial_score - scoring_slope * (distance / tree_size))`
 
 
 ## Development
