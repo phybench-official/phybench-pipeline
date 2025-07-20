@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from enum import Enum
 from typing import Any, Final, TypeVar, overload
 
 import sympy
@@ -36,6 +37,14 @@ from .tree_distance import ext_distance
 
 F = TypeVar("F", bound=Callable[..., Any])
 
+
+class NodeType(str, Enum):
+    NUMBER = "number"
+    SYMBOL = "symbol"
+    OPERATOR = "operator"
+    FUNCTION = "function"
+
+
 NegativeInfinity: Final[sympy.Basic] = -sympy.oo
 
 """
@@ -56,17 +65,25 @@ Operators: basic binary operations including addition, multiplication, and expon
 """
 
 
+def get_node_type(node: TreeNode) -> str:
+    """Extracts the base type from a node's label."""
+    return node.label.split("_")[0]
+
+
 def update_func(x: TreeNode, y: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
     if x.label == y.label:
         return 0
 
-    elif x.label.split("_")[0] == y.label.split("_")[0]:
-        return eed_settings.update_cost[x.label.split("_")[0]]
+    x_type = get_node_type(x)
+    y_type = get_node_type(y)
+
+    if x_type == y_type:
+        return eed_settings.update_cost[x_type]
     return eed_settings.change_type_cost
 
 
 def remove_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
-    return eed_settings.delete_cost[x.label.split("_")[0]]
+    return eed_settings.delete_cost[get_node_type(x)]
 
 
 def remove_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
@@ -81,7 +98,7 @@ def remove_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
 
 
 def insert_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
-    return eed_settings.insert_cost[x.label.split("_")[0]]
+    return eed_settings.insert_cost[get_node_type(x)]
 
 
 def insert_tree_func(x: TreeNode, eed_settings: EvaluationEEDSettings) -> float:
@@ -241,21 +258,21 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         Infinity,
         NegativeInfinity,
     ):
-        return TreeNode(label="number_" + str(expr), children=[])
+        return TreeNode(label=f"{NodeType.NUMBER}_{expr}", children=[])
     elif isinstance(expr, Symbol):
-        return TreeNode(label="symbol_" + str(expr), children=[])
+        return TreeNode(label=f"{NodeType.SYMBOL}_{expr}", children=[])
 
     # Binary operators
     elif isinstance(expr, Add | Mul | Pow):
         op_name = type(expr).__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
-        return TreeNode(label="operator_" + op_name, children=children)
+        return TreeNode(label=f"{NodeType.OPERATOR}_{op_name}", children=children)
 
     # Functions
     elif isinstance(expr, Function):
         func_name = expr.func.__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
-        return TreeNode(label="function_" + func_name, children=children)
+        return TreeNode(label=f"{NodeType.FUNCTION}_{func_name}", children=children)
 
     else:
         logger.error(
