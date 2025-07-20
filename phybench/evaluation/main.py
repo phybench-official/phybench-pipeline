@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import argparse
 import json
 import multiprocessing
 import time
 from pathlib import Path
 from typing import Any, Final, TypedDict
 
+import typer
 from loguru import logger
 from pydantic import BaseModel, ValidationError
 from tabulate import tabulate
@@ -14,14 +14,15 @@ from tabulate import tabulate
 from phybench.config_loader import get_settings
 from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
-from phybench.settings import EvaluationEEDSettings
+from phybench.settings import AppSettings, EvaluationEEDSettings
 
 from .expression_distance import EED, LaTeXError, SymPyError
 
 __all__: Final[list[str]] = [
     "evaluate",
-    "main",
 ]
+
+app = typer.Typer()
 
 
 class GroundTruthItem(BaseModel):
@@ -281,109 +282,101 @@ def evaluate(
     return s_opt
 
 
-def main() -> None:
-    pre_parser = argparse.ArgumentParser(add_help=False)
-    pre_parser.add_argument(
+@app.command()
+def main(
+    config_file: Path = typer.Option(
+        "config.toml",
         "--config-file",
-        default="config.toml",
+        "-c",
         help="Path to the configuration file (e.g., config.toml)",
-    )
-    args, remaining_argv = pre_parser.parse_known_args()
-
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+    ),
+    gt_dir: Path | None = typer.Option(
+        None, help="Directory containing ground truth files."
+    ),
+    gt_file: str | None = typer.Option(None, help="Ground truth filename."),
+    model_answers_dir: Path | None = typer.Option(
+        None, help="Directory containing model answer files."
+    ),
+    model_answers_file: str | None = typer.Option(None, help="Model answers filename."),
+    output_dir: Path | None = typer.Option(None, help="Output directory."),
+    output_file: str | None = typer.Option(None, help="Output filename template."),
+    log_dir: Path | None = typer.Option(None, help="Log directory."),
+    log_file: str | None = typer.Option(None, help="Log filename template."),
+    num_processes: int | None = typer.Option(
+        None, help="Number of processes to use (0 = auto-detect)."
+    ),
+    model: str | None = typer.Option(
+        None,
+        help="Model name to evaluate (just for filename template resolution).",
+    ),
+    api_caller_input_file: str | None = typer.Option(
+        None,
+        help="Input file in api caller (just for filename template resolution).",
+    ),
+    api_caller_output_file: str | None = typer.Option(
+        None,
+        help="Output file for API caller (just for filename template resolution).",
+    ),
+) -> None:
+    """
+    Evaluate model answers against ground truth using EED scoring.
+    """
     try:
-        settings = get_settings(args.config_file)
-        logger.info(f"Loaded settings from {args.config_file}")
+        settings: AppSettings = get_settings(str(config_file))
+        logger.info(f"Loaded settings from {config_file}")
     except FileNotFoundError as e:
         logger.error(f"Missing config file: {e}")
-        if args.config_file == "config.toml":
+        if str(config_file) == "config.toml":
             logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
             )
-        return
+        raise typer.Exit(code=1)
 
-    parser = argparse.ArgumentParser(
-        description="Evaluate model answers against ground truth using EED scoring",
-        parents=[pre_parser],
-    )
-
-    parser.add_argument(
-        "--gt-dir",
-        default=settings.evaluation.paths.gt_dir,
-        help="Directory containing ground truth files",
-    )
-    parser.add_argument(
-        "--gt-file",
-        default=settings.evaluation.paths.gt_file,
-        help="Ground truth filename",
-    )
-    parser.add_argument(
-        "--model-answers-dir",
-        default=settings.evaluation.paths.model_answers_dir,
-        help="Directory containing model answer files",
-    )
-    parser.add_argument(
-        "--model-answers-file",
-        default=settings.evaluation.paths.model_answers_file,
-        help="Model answers filename",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=settings.evaluation.paths.output_dir,
-        help="Output directory",
-    )
-    parser.add_argument(
-        "--output-file",
-        default=settings.evaluation.paths.output_file,
-        help="Output filename template",
-    )
-    parser.add_argument(
-        "--log-dir",
-        default=settings.logging.log_dir,
-        help="Log directory",
-    )
-    parser.add_argument(
-        "--log-file",
-        default=settings.logging.log_file,
-        help="Log filename template",
-    )
-    parser.add_argument(
-        "--num-processes",
-        type=int,
-        default=settings.evaluation.execution.num_processes,
-        help="Number of processes to use (0 = auto-detect)",
-    )
-    parser.add_argument(
-        "--model",
-        default=settings.api_caller.model.model,
-        help="Model name to evaluate (just for filename template resolution)",
-    )
-    parser.add_argument(
-        "--api-caller-input-file",
-        default=settings.api_caller.paths.input_file,
-        help="Input file in api caller (just for filename template resolution)",
-    )
-    parser.add_argument(
-        "--api-caller-output-file",
-        default=settings.api_caller.paths.output_file,
-        help="Output file for API caller (just for filename template resolution)",
-    )
-
-    final_args = parser.parse_args(remaining_argv)
+    # Override settings with CLI options if provided
+    if gt_dir:
+        settings.evaluation.paths.gt_dir = str(gt_dir)
+    if gt_file:
+        settings.evaluation.paths.gt_file = gt_file
+    if model_answers_dir:
+        settings.evaluation.paths.model_answers_dir = str(model_answers_dir)
+    if model_answers_file:
+        settings.evaluation.paths.model_answers_file = model_answers_file
+    if output_dir:
+        settings.evaluation.paths.output_dir = str(output_dir)
+    if output_file:
+        settings.evaluation.paths.output_file = output_file
+    if log_dir:
+        settings.logging.log_dir = str(log_dir)
+    if log_file:
+        settings.logging.log_file = log_file
+    if num_processes is not None:
+        settings.evaluation.execution.num_processes = num_processes
+    if model:
+        settings.api_caller.model.model = model
+    if api_caller_input_file:
+        settings.api_caller.paths.input_file = api_caller_input_file
+    if api_caller_output_file:
+        settings.api_caller.paths.output_file = api_caller_output_file
 
     resolver = PathResolver(
-        final_args.model,
+        settings.api_caller.model.model,
         settings.api_caller.paths.input_dir,
-        final_args.api_caller_input_file,
+        settings.api_caller.paths.input_file,
         settings.api_caller.paths.output_dir,
-        final_args.api_caller_output_file,
-        final_args.gt_dir,
-        final_args.gt_file,
-        final_args.model_answers_dir,
-        final_args.model_answers_file,
-        final_args.output_dir,
-        final_args.output_file,
-        final_args.log_dir,
-        final_args.log_file,
+        settings.api_caller.paths.output_file,
+        settings.evaluation.paths.gt_dir,
+        settings.evaluation.paths.gt_file,
+        settings.evaluation.paths.model_answers_dir,
+        settings.evaluation.paths.model_answers_file,
+        settings.evaluation.paths.output_dir,
+        settings.evaluation.paths.output_file,
+        settings.logging.log_dir,
+        settings.logging.log_file,
     )
 
     setup_logging(
@@ -410,4 +403,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    app()

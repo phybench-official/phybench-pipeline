@@ -4,7 +4,7 @@ Entry point for the evaluation module when run as a package.
 Usage: python -m phybench.evaluation [arguments]
 """
 
-from .main import main
+from .main import app
 
 if __name__ == "__main__":
-    main()
+    app()
