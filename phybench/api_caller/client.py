@@ -8,6 +8,7 @@ from loguru import logger
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletion
 from openai.types.completion_usage import CompletionUsage
+from pydantic import BaseModel, ValidationError
 from tqdm import tqdm
 
 _NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
@@ -27,33 +28,38 @@ def create_async_client(api_key: str, base_url: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
 
-def read_problems(filename: str) -> list[dict[str, Any]]:
+class ProblemItem(BaseModel):
+    id: int
+    content: str
+
+
+def read_problems(filename: str) -> list[ProblemItem]:
     """
-    Reads a JSON file containing physics problems.
-    Each problem should contain at least "id" and "content" fields.
+    Reads and validates a JSON file containing physics problems.
 
     Args:
         filename: The path to the JSON file.
 
     Returns:
-        A list of dictionaries, where each dictionary represents a problem.
+        A list of ProblemItem objects if validation is successful, otherwise an empty list.
     """
-
     try:
         with open(filename, encoding="utf-8") as f:
             data = json.load(f)
+        # Validate the structure of the data and return the Pydantic models
+        return [ProblemItem.model_validate(item) for item in data]
     except FileNotFoundError:
         logger.error(f"File '{filename}' not found.")
         return []
     except json.JSONDecodeError:
         logger.error(f"File '{filename}' is not a valid JSON file.")
         return []
-
-    if not isinstance(data, list):
-        logger.error(f"File '{filename}' should contain a list of problems.")
+    except ValidationError as e:
+        logger.error(f"Data validation failed for '{filename}':\n{e}")
         return []
-
-    return data
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while reading '{filename}': {e}")
+        return []
 
 
 def extract_boxed_answer(solution_text: str) -> str:
@@ -158,7 +164,7 @@ def _is_openai_o_model(model_name: str) -> bool:
 
 async def generate_solution_data(
     async_client_instance: AsyncOpenAI,
-    problem: dict[str, Any],
+    problem: ProblemItem,
     model: str,
     repeat_idx: int | None,
     timeout: float | None = 1200.0,
@@ -182,10 +188,10 @@ The final answer must be a single, fully simplified, and directly parseable LaTe
 Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
 Use standard LaTeX conventions rigorously."""
 
-    question_text: str = problem.get("translatedContent", problem.get("content", ""))
+    question_text: str = problem.content
     if not question_text:
         return {
-            "id": problem.get("id", "N/A"),
+            "id": problem.id,
             "model": model,
             "model_solution": "Error: No question content found",
             "model_answer": "",
@@ -221,7 +227,7 @@ Use standard LaTeX conventions rigorously."""
         usage: CompletionUsage | None = response.usage
 
         result = {
-            "id": problem.get("id", "N/A"),
+            "id": problem.id,
             "model": model,
             "model_solution": solution_content,
             "model_answer": model_answer,
@@ -246,7 +252,7 @@ Use standard LaTeX conventions rigorously."""
         error_msg = f"Error generating solution: {str(e)}"
 
         return {
-            "id": problem.get("id", "N/A"),
+            "id": problem.id,
             "model": model,
             "model_solution": error_msg,
             "model_answer": "",
@@ -259,7 +265,7 @@ Use standard LaTeX conventions rigorously."""
 
 async def process_problem(
     async_client_instance: AsyncOpenAI,
-    problem: dict[str, Any],
+    problem: ProblemItem,
     model: str,
     output_filename: str,
     pbar: tqdm | None = None,
@@ -283,7 +289,7 @@ async def process_problem(
         The solution dictionary that was generated and written.
     """
 
-    problem_id = problem.get("id", "N/A")
+    problem_id = problem.id
     status_msg_key = f"problem {problem_id}" + (
         f" (attempt {repeat_idx + 1})" if repeat_idx is not None else ""
     )

@@ -18,6 +18,7 @@ from phybench.path_resolver import PathResolver
 from phybench.settings import ProviderSettings
 
 from .client import (
+    ProblemItem,
     create_async_client,
     generate_solution_data,
     read_problems,
@@ -62,7 +63,7 @@ def is_error_solution(solution: dict[str, Any]) -> bool:
 
 
 def producer(
-    problems: list[dict[str, Any]],
+    problems: list[ProblemItem],
     model: str,
     repeat_count: int,
     output_file: Path,
@@ -93,7 +94,7 @@ def producer(
 
     for repeat_idx in range(repeat_count):
         for problem in problems:
-            problem_id = problem.get("id", "N/A")
+            problem_id = problem.id
             task_key = f"{problem_id}_{repeat_idx}"
 
             if task_key in completed_for_model:
