@@ -125,7 +125,7 @@ def calc_tree_size(node: TreeNode, eed_settings: EvaluationEEDSettings) -> float
           node to store the calculated subtree size for future use.
     """
 
-    total = eed_settings.insert_cost[node.label.split("_")[0]]
+    total = eed_settings.insert_cost[get_node_type(node)]
 
     if node.children and node.subtree_size != 0:
         return node.subtree_size
