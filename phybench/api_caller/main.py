@@ -435,18 +435,14 @@ def main(
     ] = Path("config.toml"),
     model: Annotated[
         str | None,
-        typer.Option(
-            help="Model name to use for API calls (must be configured in config.toml)"
-        ),
+        typer.Option(help="Model to use for API calls (must be in config)"),
     ] = None,
     input_dir: Annotated[
         Path | None, typer.Option(help="Directory containing input JSON files")
     ] = None,
     input_file: Annotated[
         str | None,
-        typer.Option(
-            help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing)."
-        ),
+        typer.Option(help="Input problems filename (JSON)."),
     ] = None,
     output_dir: Annotated[
         Path | None,
@@ -456,30 +452,26 @@ def main(
     ] = None,
     output_file: Annotated[
         str | None,
-        typer.Option(
-            help="Output filename template. Use {input_file} and {model} placeholders"
-        ),
+        typer.Option(help="Output filename for model solutions (JSON)."),
     ] = None,
     repeat_count: Annotated[
-        int | None, typer.Option(help="Number of times to repeat each problem")
+        int | None, typer.Option(help="Number of times to run each problem.")
     ] = None,
     num_consumers: Annotated[
-        int | None, typer.Option(help="Number of consumer threads")
+        int | None, typer.Option(help="Number of concurrent API calls.")
     ] = None,
     chat_timeout: Annotated[
-        float | None, typer.Option(help="API call timeout in seconds")
+        float | None, typer.Option(help="API call timeout (seconds).")
     ] = None,
     max_retries: Annotated[
-        int | None, typer.Option(help="Maximum retries for failed API calls")
+        int | None, typer.Option(help="Max retries for failed API calls.")
     ] = None,
     log_dir: Annotated[
         Path | None, typer.Option(help="Directory to store log files")
     ] = None,
     log_file: Annotated[
         str | None,
-        typer.Option(
-            help="Log file template. Use {input_file} and {model} placeholders"
-        ),
+        typer.Option(help="Log filename."),
     ] = None,
 ) -> None:
     global task_queue, result_queue

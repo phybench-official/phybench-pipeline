@@ -301,40 +301,37 @@ def main(
         Path | None,
         typer.Option(help="Directory containing ground truth files."),
     ] = None,
-    gt_file: Annotated[str | None, typer.Option(help="Ground truth filename.")] = None,
+    gt_file: Annotated[
+        str | None, typer.Option(help="Ground truth filename (JSON).")
+    ] = None,
     model_answers_dir: Annotated[
         Path | None,
         typer.Option(help="Directory containing model answer files."),
     ] = None,
     model_answers_file: Annotated[
-        str | None, typer.Option(help="Model answers filename.")
+        str | None, typer.Option(help="Model answers filename (JSON).")
     ] = None,
     output_dir: Annotated[Path | None, typer.Option(help="Output directory.")] = None,
     output_file: Annotated[
-        str | None, typer.Option(help="Output filename template.")
+        str | None, typer.Option(help="Output filename for evaluation results (JSON).")
     ] = None,
     log_dir: Annotated[Path | None, typer.Option(help="Log directory.")] = None,
     log_file: Annotated[str | None, typer.Option(help="Log filename template.")] = None,
     num_processes: Annotated[
-        int | None, typer.Option(help="Number of processes to use (0 = auto-detect).")
+        int | None,
+        typer.Option(help="Number of cores for parallel processing (0=auto)."),
     ] = None,
     model: Annotated[
         str | None,
-        typer.Option(
-            help="Model name to evaluate (just for filename template resolution)."
-        ),
+        typer.Option(help="Model name (for filename resolution)."),
     ] = None,
     api_caller_input_file: Annotated[
         str | None,
-        typer.Option(
-            help="Input file in api caller (just for filename template resolution)."
-        ),
+        typer.Option(help="API caller input file (for filename resolution)."),
     ] = None,
     api_caller_output_file: Annotated[
         str | None,
-        typer.Option(
-            help="Output file for API caller (just for filename template resolution)."
-        ),
+        typer.Option(help="API caller output file (for filename resolution)."),
     ] = None,
 ) -> None:
     """
