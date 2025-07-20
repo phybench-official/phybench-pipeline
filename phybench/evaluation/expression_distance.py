@@ -258,21 +258,23 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         Infinity,
         NegativeInfinity,
     ):
-        return TreeNode(label=f"{NodeType.NUMBER}_{expr}", children=[])
+        return TreeNode(label=f"{NodeType.NUMBER.value}_{expr}", children=[])
     elif isinstance(expr, Symbol):
-        return TreeNode(label=f"{NodeType.SYMBOL}_{expr}", children=[])
+        return TreeNode(label=f"{NodeType.SYMBOL.value}_{expr}", children=[])
 
     # Binary operators
     elif isinstance(expr, Add | Mul | Pow):
         op_name = type(expr).__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
-        return TreeNode(label=f"{NodeType.OPERATOR}_{op_name}", children=children)
+        return TreeNode(label=f"{NodeType.OPERATOR.value}_{op_name}", children=children)
 
     # Functions
     elif isinstance(expr, Function):
         func_name = expr.func.__name__
         children = [sympy_to_tree(arg) for arg in expr.args]
-        return TreeNode(label=f"{NodeType.FUNCTION}_{func_name}", children=children)
+        return TreeNode(
+            label=f"{NodeType.FUNCTION.value}_{func_name}", children=children
+        )
 
     else:
         logger.error(
