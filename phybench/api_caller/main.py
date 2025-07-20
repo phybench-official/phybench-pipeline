@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import json
 import queue
@@ -6,8 +5,9 @@ import shutil
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
+import typer
 from loguru import logger
 from openai import AsyncOpenAI
 from tqdm import tqdm
@@ -15,7 +15,7 @@ from tqdm import tqdm
 from phybench.config_loader import get_settings
 from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
-from phybench.settings import ProviderSettings
+from phybench.settings import AppSettings, ProviderSettings
 
 from .client import (
     ProblemItem,
@@ -26,6 +26,8 @@ from .client import (
 
 task_queue: "queue.Queue[dict[str, Any] | None]"
 result_queue: "queue.Queue[dict[str, Any] | None]"
+
+app: typer.Typer = typer.Typer()
 
 
 def get_provider_for_model(
@@ -416,111 +418,127 @@ async def validate_model(
         return False
 
 
-def main() -> None:
+@app.command()  # type: ignore
+def main(
+    config_file: Annotated[
+        Path,
+        typer.Option(
+            "--config-file",
+            "-c",
+            help="Path to the configuration file (e.g., config.toml)",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+            resolve_path=True,
+        ),
+    ] = Path("config.toml"),
+    model: Annotated[
+        str | None,
+        typer.Option(
+            help="Model name to use for API calls (must be configured in config.toml)"
+        ),
+    ] = None,
+    input_dir: Annotated[
+        Path | None, typer.Option(help="Directory containing input JSON files")
+    ] = None,
+    input_file: Annotated[
+        str | None,
+        typer.Option(
+            help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing)."
+        ),
+    ] = None,
+    output_dir: Annotated[
+        Path | None,
+        typer.Option(
+            help="Directory to store output files (individual model solution files)"
+        ),
+    ] = None,
+    output_file: Annotated[
+        str | None,
+        typer.Option(
+            help="Output filename template. Use {input_file} and {model} placeholders"
+        ),
+    ] = None,
+    repeat_count: Annotated[
+        int | None, typer.Option(help="Number of times to repeat each problem")
+    ] = None,
+    num_consumers: Annotated[
+        int | None, typer.Option(help="Number of consumer threads")
+    ] = None,
+    chat_timeout: Annotated[
+        float | None, typer.Option(help="API call timeout in seconds")
+    ] = None,
+    max_retries: Annotated[
+        int | None, typer.Option(help="Maximum retries for failed API calls")
+    ] = None,
+    log_dir: Annotated[
+        Path | None, typer.Option(help="Directory to store log files")
+    ] = None,
+    log_file: Annotated[
+        str | None,
+        typer.Option(
+            help="Log file template. Use {input_file} and {model} placeholders"
+        ),
+    ] = None,
+) -> None:
     global task_queue, result_queue
-    pre_parser = argparse.ArgumentParser(add_help=False)
-    pre_parser.add_argument(
-        "--config-file",
-        default="config.toml",
-        help="Path to the configuration file (e.g., config.toml)",
-    )
-    args, remaining_argv = pre_parser.parse_known_args()
-
     try:
-        settings = get_settings(args.config_file)
-        logger.info(f"Loaded settings from {args.config_file}")
+        settings: AppSettings = get_settings(str(config_file))
+        logger.info(f"Loaded settings from {config_file}")
     except FileNotFoundError as e:
         logger.error(f"Missing config file: {e}")
-        if args.config_file == "config.toml":
+        if str(config_file) == "config.toml":
             logger.error(
                 "Please create a 'config.toml' file or use --config-file to specify a path."
             )
-        return
+        raise typer.Exit(code=1) from e
 
-    parser = argparse.ArgumentParser(
-        description="Parallel API caller for physics problems", parents=[pre_parser]
-    )
+    # Override settings with CLI options if provided
+    if model:
+        settings.api_caller.model.model = model
+    if input_dir:
+        settings.api_caller.paths.input_dir = str(input_dir)
+    if input_file:
+        settings.api_caller.paths.input_file = input_file
+    if output_dir:
+        settings.api_caller.paths.output_dir = str(output_dir)
+    if output_file:
+        settings.api_caller.paths.output_file = output_file
+    if repeat_count is not None:
+        settings.api_caller.execution.repeat_count = repeat_count
+    if num_consumers is not None:
+        settings.api_caller.execution.num_consumers = num_consumers
+    if chat_timeout is not None:
+        settings.api_caller.execution.chat_timeout = int(chat_timeout)
+    if max_retries is not None:
+        settings.api_caller.execution.max_retries = max_retries
+    if log_dir:
+        settings.logging.log_dir = str(log_dir)
+    if log_file:
+        settings.logging.log_file = log_file
 
-    parser.add_argument(
-        "--model",
-        default=settings.api_caller.model.model,
-        help="Model name to use for API calls (must be configured in config.toml)",
-    )
-    parser.add_argument(
-        "--input-dir",
-        default=settings.api_caller.paths.input_dir,
-        help="Directory containing input JSON files",
-    )
-    parser.add_argument(
-        "--input-file",
-        default=settings.api_caller.paths.input_file,
-        help="Input JSON filename that contains problems (should contain fields: id, tag, content, solution, answer). Extension optional (.json will be added if missing).",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=settings.api_caller.paths.output_dir,
-        help="Directory to store output files (individual model solution files)",
-    )
-    parser.add_argument(
-        "--output-file",
-        default=settings.api_caller.paths.output_file,
-        help="Output filename template. Use {input_file} and {model} placeholders",
-    )
-    parser.add_argument(
-        "--repeat-count",
-        type=int,
-        default=settings.api_caller.execution.repeat_count,
-        help="Number of times to repeat each problem",
-    )
-    parser.add_argument(
-        "--num-consumers",
-        type=int,
-        default=settings.api_caller.execution.num_consumers,
-        help="Number of consumer threads",
-    )
-    parser.add_argument(
-        "--chat-timeout",
-        type=float,
-        default=settings.api_caller.execution.chat_timeout,
-        help="API call timeout in seconds",
-    )
-    parser.add_argument(
-        "--max-retries",
-        type=int,
-        default=settings.api_caller.execution.max_retries,
-        help="Maximum retries for failed API calls",
-    )
-    parser.add_argument(
-        "--log-dir",
-        default=settings.logging.log_dir,
-        help="Directory to store log files",
-    )
-    parser.add_argument(
-        "--log-file",
-        default=settings.logging.log_file,
-        help="Log file template. Use {input_file} and {model} placeholders",
-    )
-
-    final_args = parser.parse_args(remaining_argv)
-
-    if not final_args.model or final_args.model.strip() == "":
+    if (
+        not settings.api_caller.model.model
+        or settings.api_caller.model.model.strip() == ""
+    ):
         logger.error("No model specified. Use --model or set model in config.")
-        return
+        raise typer.Exit(code=1)
 
     resolver = PathResolver(
-        final_args.model,
-        final_args.input_dir,
-        final_args.input_file,
-        final_args.output_dir,
-        final_args.output_file,
+        settings.api_caller.model.model,
+        settings.api_caller.paths.input_dir,
+        settings.api_caller.paths.input_file,
+        settings.api_caller.paths.output_dir,
+        settings.api_caller.paths.output_file,
         settings.evaluation.paths.gt_dir,
         settings.evaluation.paths.gt_file,
         settings.evaluation.paths.model_answers_dir,
         settings.evaluation.paths.model_answers_file,
         settings.evaluation.paths.output_dir,
         settings.evaluation.paths.output_file,
-        final_args.log_dir,
-        final_args.log_file,
+        settings.logging.log_dir,
+        settings.logging.log_file,
     )
 
     setup_logging(
@@ -531,72 +549,79 @@ def main() -> None:
 
     input_file_path = resolver.get_api_caller_input_file()
 
-    provider = get_provider_for_model(final_args.model, settings.providers)
+    provider = get_provider_for_model(
+        settings.api_caller.model.model, settings.providers
+    )
 
     if not provider:
         logger.error(
-            f"No provider found for model '{final_args.model}'. Please add it to your config.toml"
+            f"No provider found for model '{settings.api_caller.model.model}'. Please add it to your config.toml"
         )
-        return
+        raise typer.Exit(code=1)
 
     logger.info(
-        f"🔍 Validating model '{final_args.model}' using provider '{provider.name}'..."
+        f"🔍 Validating model '{settings.api_caller.model.model}' using provider '{provider.name}'..."
     )
     if not asyncio.run(
-        validate_model(provider.api_key, provider.base_url, final_args.model)
+        validate_model(
+            provider.api_key, provider.base_url, settings.api_caller.model.model
+        )
     ):
         logger.error(
-            f"Model '{final_args.model}' is not available. Please check your model name and API configuration."
+            f"Model '{settings.api_caller.model.model}' is not available. Please check your model name and API configuration."
         )
-        return
-    logger.success(f"✅ Model '{final_args.model}' validated successfully.")
+        raise typer.Exit(code=1)
+    logger.success(
+        f"✅ Model '{settings.api_caller.model.model}' validated successfully."
+    )
 
     problems = read_problems(str(input_file_path))
     if not problems:
         logger.error("No problems loaded. Exiting.")
         return
 
-    output_file = resolver.get_api_caller_output_file()
+    output_file_path = resolver.get_api_caller_output_file()
 
     task_queue = queue.Queue(maxsize=settings.api_caller.execution.max_task_queue_size)
     result_queue = queue.Queue()
 
-    total_tasks = len(problems) * final_args.repeat_count
+    total_tasks = len(problems) * settings.api_caller.execution.repeat_count
 
     logger.info("🚀 Starting parallel processing:")
-    logger.info(f"  - Model: {final_args.model}")
+    logger.info(f"  - Model: {settings.api_caller.model.model}")
     logger.info(f"  - Problems: {len(problems)}")
-    logger.info(f"  - Repeat count: {final_args.repeat_count}")
+    logger.info(f"  - Repeat count: {settings.api_caller.execution.repeat_count}")
     logger.info(f"  - Total tasks: {total_tasks}")
-    logger.info(f"  - Consumers: {final_args.num_consumers}")
-    logger.info(f"  - Output: {output_file}")
+    logger.info(f"  - Consumers: {settings.api_caller.execution.num_consumers}")
+    logger.info(f"  - Output: {output_file_path}")
 
     producer_thread = threading.Thread(
         target=producer,
         args=(
             problems,
-            final_args.model,
-            final_args.repeat_count,
-            output_file,
+            settings.api_caller.model.model,
+            settings.api_caller.execution.repeat_count,
+            output_file_path,
             "Producing tasks",
         ),
     )
 
     consumer_threads = []
-    for _ in range(final_args.num_consumers):
+    for _ in range(settings.api_caller.execution.num_consumers):
         thread = threading.Thread(
             target=run_consumer_loop,
             args=(
                 provider.api_key,
                 provider.base_url,
-                final_args.chat_timeout,
-                final_args.max_retries,
+                settings.api_caller.execution.chat_timeout,
+                settings.api_caller.execution.max_retries,
             ),
         )
         consumer_threads.append(thread)
 
     writer_thread = threading.Thread(
-        target=result_writer, args=(output_file, total_tasks, 10, "Processing results")
+        target=result_writer,
+        args=(output_file_path, total_tasks, 10, "Processing results"),
     )
 
     producer_thread.start()
@@ -612,7 +637,7 @@ def main() -> None:
     task_queue.join()
     logger.info("All tasks completed")
 
-    for _ in range(final_args.num_consumers):
+    for _ in range(settings.api_caller.execution.num_consumers):
         task_queue.put(None)
 
     for thread in consumer_threads:
@@ -627,4 +652,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    app()

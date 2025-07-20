@@ -6,7 +6,7 @@ Usage: python -m phybench.api_caller [arguments]
 Supports all CLI arguments that match the config.ini structure.
 """
 
-from .main import main
+from .main import app
 
 if __name__ == "__main__":
-    main()
+    app()
