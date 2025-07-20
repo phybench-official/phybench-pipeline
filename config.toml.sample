@@ -77,14 +77,13 @@ model_answers_file = "test_gpt-4o.json"
 # Directory for output evaluation results JSON files.
 output_dir = "data/evaluation_results"
 # Output filename template for evaluation results (without path; with or without .json)
-# Placeholders: {gt_file}, {model_answers_file}, {api_caller_input_file} ,
-#               {api_caller_model}, {api_caller_output_file}
+# Placeholders: {gt_file}, {model_answers_file}, {api_caller_input_file}, {api_caller_model}, {api_caller_output_file}
 output_file = "test.json"
 
 [evaluation.eed]
-# Base score assigned before distance penalty (higher = more lenient, range: 0-100)
+# Base score before distance penalty (0-100).
 initial_score = 60
-# Scaling factor for expression distance penalty (higher = steeper penalty curve)
+# Scaling factor for distance penalty.
 scoring_slope = 100
 # Cost for inserting a node in the expression tree
 insert_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
@@ -92,29 +91,29 @@ insert_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
 delete_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
 # Cost for updating a node in the expression tree
 update_cost = { number = 1, symbol = 1, operator = 1, function = 1 }
-# Cost for changing the type of a node (e.g., from a number to a symbol)
+# Cost for changing node type (e.g., from a number to a symbol).
 change_type_cost = 1
-# The minimum size of a subtree to trigger a cluster discount
+# Minimum subtree size for cluster discount.
 bar_size = 5
-# The slope of the discount for large subtrees
+# Discount slope for large subtrees.
 discount_slope = 0.6
-# Time limit for simplifying expressions in seconds
+# Time limit for simplifying expressions (seconds).
 simplify_time_limit = 30
-# Time limit for checking equality of expressions in seconds
+# Time limit for checking expression equality (seconds).
 equals_time_limit = 10
 
 [evaluation.execution]
-# Number of CPU cores to use (0 = auto-detect)
+# Number of CPU cores for parallel processing (0 = auto-detect).
 num_processes = 0
-# A list of problem IDs to skip during evaluation
+# Problem IDs to skip during evaluation.
 skip_problem_ids = [108]
 
 
 # -------------------------------- logging -------------------------------- #
 [logging]
-# Directory for log files
+# Directory for log files.
 log_dir = "logs"
-# Log filename template
+# Log filename.
 # Placeholders: {gt_file}, {api_caller_input_file}
 log_file = "test.json"
 # Log level for console output (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL)
