@@ -15,7 +15,7 @@ from tqdm import tqdm
 from phybench.config_loader import get_settings
 from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
-from phybench.settings import AppSettings, ProviderSettings
+from phybench.settings import APICallerPromptSettings, AppSettings, ProviderSettings
 
 from .client import (
     ProblemItem,
@@ -129,7 +129,10 @@ def producer(
 
 
 async def consumer_task_processor(
-    client: AsyncOpenAI, chat_timeout: float, max_retries: int
+    client: AsyncOpenAI,
+    chat_timeout: float,
+    max_retries: int,
+    prompt_settings: APICallerPromptSettings,
 ) -> None:
     """
     Continuously fetches tasks from task_queue, processes them using generate_solution_data,
@@ -155,7 +158,12 @@ async def consumer_task_processor(
             while retry_count <= max_retries:
                 try:
                     solution_data = await generate_solution_data(
-                        client, problem, model, repeat_idx, timeout=chat_timeout
+                        client,
+                        problem,
+                        model,
+                        repeat_idx,
+                        timeout=chat_timeout,
+                        prompt_settings=prompt_settings,
                     )
 
                     if not is_error_solution(solution_data):
@@ -196,7 +204,11 @@ async def consumer_task_processor(
 
 
 def run_consumer_loop(
-    api_key: str, base_url: str, chat_timeout: float, max_retries: int
+    api_key: str,
+    base_url: str,
+    chat_timeout: float,
+    max_retries: int,
+    prompt_settings: APICallerPromptSettings,
 ) -> None:
     """
     Wrapper to run the asyncio event loop for a single consumer.
@@ -206,7 +218,9 @@ def run_consumer_loop(
     async def actual_processing_loop() -> None:
         client = create_async_client(api_key, base_url)
         try:
-            await consumer_task_processor(client, chat_timeout, max_retries)
+            await consumer_task_processor(
+                client, chat_timeout, max_retries, prompt_settings
+            )
         finally:
             await client.close()
 
@@ -607,6 +621,7 @@ def main(
                 provider.base_url,
                 settings.api_caller.execution.chat_timeout,
                 settings.api_caller.execution.max_retries,
+                settings.api_caller.prompt,
             ),
         )
         consumer_threads.append(thread)

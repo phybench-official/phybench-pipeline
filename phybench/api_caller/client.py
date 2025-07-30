@@ -11,6 +11,8 @@ from openai.types.completion_usage import CompletionUsage
 from pydantic import BaseModel, ValidationError
 from tqdm import tqdm
 
+from phybench.settings import APICallerPromptSettings
+
 _NORMALIZED_OPENAI_O_MODELS: set[str] | None = None
 
 
@@ -167,6 +169,7 @@ async def generate_solution_data(
     problem: ProblemItem,
     model: str,
     repeat_idx: int | None,
+    prompt_settings: APICallerPromptSettings,
     timeout: float | None = 1200.0,
 ) -> dict[str, Any]:
     """
@@ -182,11 +185,6 @@ async def generate_solution_data(
     Returns:
         A dictionary containing the solution details, including any errors encountered.
     """
-    user_prompt_prefix = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer.
-Your final answer must be enclosed strictly within a single \\boxed{} command.
-The final answer must be a single, fully simplified, and directly parseable LaTeX expression.
-Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
-Use standard LaTeX conventions rigorously."""
 
     question_text: str = problem.content
     if not question_text:
@@ -201,7 +199,7 @@ Use standard LaTeX conventions rigorously."""
             "error_message": "Missing question content",
         }
 
-    full_user_prompt = f"{user_prompt_prefix}\nQuestion: {question_text}\n\nPlease provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
+    full_user_prompt = f"{prompt_settings.prefix}\n\nQuestion: {question_text}\n\n{prompt_settings.suffix}"
 
     start_time = time.time()
 
@@ -268,6 +266,7 @@ async def process_problem(
     problem: ProblemItem,
     model: str,
     output_filename: str,
+    prompt_settings: APICallerPromptSettings,
     pbar: tqdm | None = None,
     repeat_idx: int | None = None,
     api_timeout: float | None = 1200.0,
@@ -301,7 +300,12 @@ async def process_problem(
         logger.info(status_msg)
 
     solution_data = await generate_solution_data(
-        async_client_instance, problem, model, repeat_idx, timeout=api_timeout
+        async_client_instance,
+        problem,
+        model,
+        repeat_idx,
+        prompt_settings=prompt_settings,
+        timeout=api_timeout,
     )
 
     elapsed_time = solution_data.get("time_taken", 0.0)

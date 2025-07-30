@@ -61,6 +61,16 @@ max_retries = 5
 # Max items in the task queue.
 max_task_queue_size = 100
 
+[api_caller.prompt]
+# User prompt prefix for the API call.
+prefix = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer.
+Your final answer must be enclosed strictly within a single \boxed{} command.
+The final answer must be a single, fully simplified, and directly parseable LaTeX expression.
+Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
+Use standard LaTeX conventions rigorously."""
+# User prompt suffix for the API call.
+suffix = "Please provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
+
 
 # -------------------------------- evaluation -------------------------------- #
 [evaluation.paths]

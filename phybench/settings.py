@@ -38,10 +38,20 @@ class APICallerExecutionSettings(BaseModel):
     max_task_queue_size: int = 100
 
 
+class APICallerPromptSettings(BaseModel):
+    prefix: str = """You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer.
+Your final answer must be enclosed strictly within a single \boxed{} command.
+The final answer must be a single, fully simplified, and directly parseable LaTeX expression.
+Do NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.
+Use standard LaTeX conventions rigorously."""
+    suffix: str = "Please provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise."
+
+
 class APICallerSettings(BaseModel):
     model: APICallerModelSettings
     paths: APICallerPathsSettings
     execution: APICallerExecutionSettings
+    prompt: APICallerPromptSettings
 
 
 # --- Evaluation Settings ---
