@@ -1,4 +1,7 @@
 from phybench.evaluation.expression_distance import EED
+from phybench.settings import EvaluationEEDSettings
+
+eed_settings = EvaluationEEDSettings()
 
 # --- Test Data ---
 ground_truth_latex_332 = r"""
@@ -19,12 +22,11 @@ model_latex_713 = r"\frac{(1 - \beta^2) E_1^2}{(E_1 - \beta \sqrt{E_1^2 - m_\tau
 
 def test_issue_332_regression():
     """Tests for regression on issue 332."""
+    eed_settings_332 = EvaluationEEDSettings(simplify_time_limit=300)
     score, _, ans_size, distance = EED(
         answer_latex=ground_truth_latex_332,
         test_latex=model_latex_332,
-        scoring_parameters=[100, 10],
-        # This expression is extremely complex and requires a long timeout to simplify.
-        simplify_timeout=300,
+        eed_settings=eed_settings_332,
     )
     assert ans_size == 159
     assert round(distance, 1) == 110.4
@@ -35,7 +37,7 @@ def test_issue_698_regression():
     score, _, ans_size, distance = EED(
         answer_latex=ground_truth_latex_698,
         test_latex=model_latex_698,
-        scoring_parameters=[100, 10],
+        eed_settings=eed_settings,
     )
     assert ans_size == 110
     assert distance == 58.4
@@ -46,7 +48,7 @@ def test_issue_713_regression():
     score, _, ans_size, distance = EED(
         answer_latex=ground_truth_latex_713,
         test_latex=model_latex_713,
-        scoring_parameters=[100, 10],
+        eed_settings=eed_settings,
     )
     assert ans_size == 234
     assert distance == 141.4

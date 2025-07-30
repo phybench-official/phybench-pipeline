@@ -34,6 +34,10 @@ class TestCliConsistency(unittest.TestCase):
                     "max_retries": 1,
                     "max_task_queue_size": 1,
                 },
+                "prompt": {
+                    "prefix": "You are a physics expert. Carefully read the following question and provide a clear, step-by-step solution leading clearly to the final answer.\nYour final answer must be enclosed strictly within a single \boxed{} command.\nThe final answer must be a single, fully simplified, and directly parseable LaTeX expression.\nDo NOT include integral symbol, multiple lines, piecewise cases, summation symbols, or textual explanations inside the boxed expression.\nUse standard LaTeX conventions rigorously.",
+                    "suffix": "Please provide the solution in LaTeX format, ensuring that the final boxed answer is clear and concise.",
+                },
             },
             "evaluation": {
                 "paths": {
@@ -44,7 +48,33 @@ class TestCliConsistency(unittest.TestCase):
                     "output_dir": "data/evaluation_results",
                     "output_file": "eval_{api_caller_output_file}.json",
                 },
-                "scoring": {"initial_score": 60, "scoring_slope": 100},
+                "eed": {
+                    "initial_score": 60,
+                    "scoring_slope": 100,
+                    "insert_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "delete_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "update_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "change_type_cost": 1,
+                    "bar_size": 5,
+                    "discount_slope": 0.6,
+                    "simplify_time_limit": 30,
+                    "equals_time_limit": 10,
+                },
                 "execution": {"num_processes": 1},
             },
             "logging": {
@@ -64,34 +94,35 @@ class TestCliConsistency(unittest.TestCase):
             os.remove("test_config.toml")
 
     def test_cli_help_includes_all_arguments(self) -> None:
-        result = subprocess.run(
-            [sys.executable, "-m", "phybench.evaluation", "--help"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        help_text = result.stdout
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "phybench.evaluation", "--help"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            help_text = result.stdout
 
-        expected_args = [
-            "--config-file",
-            "--gt-dir",
-            "--gt-file",
-            "--model-answers-dir",
-            "--model-answers-file",
-            "--output-dir",
-            "--output-file",
-            "--log-dir",
-            "--log-file",
-            "--initial-score",
-            "--scoring-slope",
-            "--num-processes",
-            "--model",
-            "--api-caller-input-file",
-            "--api-caller-output-file",
-        ]
+            expected_args = [
+                "--config-file",
+                "--gt-dir",
+                "--gt-file",
+                "--model-answers-dir",
+                "--model-answers-file",
+                "--output-dir",
+                "--output-file",
+                "--log-dir",
+                "--log-file",
+                "--num-processes",
+                "--model",
+                "--api-caller-input-file",
+                "--api-caller-output-file",
+            ]
 
-        for arg in expected_args:
-            self.assertIn(arg, help_text)
+            for arg in expected_args:
+                self.assertIn(arg, help_text)
+        finally:
+            self.tearDown()
 
     def test_cli_argument_parsing(self) -> None:
         # This test is complex to set up with subprocesses.

@@ -34,6 +34,10 @@ class TestPathResolver(unittest.TestCase):
                     "max_retries": 1,
                     "max_task_queue_size": 1,
                 },
+                "prompt": {
+                    "prefix": "",
+                    "suffix": "",
+                },
             },
             "evaluation": {
                 "paths": {
@@ -44,7 +48,33 @@ class TestPathResolver(unittest.TestCase):
                     "output_dir": "data/evaluation_results",
                     "output_file": "eval_{api_caller_output_file}.json",
                 },
-                "scoring": {"initial_score": 60, "scoring_slope": 100},
+                "eed": {
+                    "initial_score": 60,
+                    "scoring_slope": 100,
+                    "insert_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "delete_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "update_cost": {
+                        "number": 1,
+                        "symbol": 1,
+                        "operator": 1,
+                        "function": 1,
+                    },
+                    "change_type_cost": 1,
+                    "bar_size": 5,
+                    "discount_slope": 0.6,
+                    "simplify_time_limit": 30,
+                    "equals_time_limit": 10,
+                },
                 "execution": {"num_processes": 1},
             },
             "logging": {

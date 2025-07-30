@@ -1,4 +1,7 @@
 from phybench.evaluation.expression_distance import EED
+from phybench.settings import EvaluationEEDSettings
+
+eed_settings = EvaluationEEDSettings()
 
 
 def test_timeout_handling():
@@ -11,11 +14,11 @@ def test_timeout_handling():
     model_latex = r"\frac{(d \cos \varphi - \sqrt{d^2 - R^2 - L^2 + 2 d L \cos \varphi}) \sin \varphi}{R + \sqrt{d^2 - R^2 - L^2 + 2 d L \cos \varphi} \cos \varphi}"
 
     # Test with a very short timeout to ensure it times out.
+    eed_settings_timeout = EvaluationEEDSettings(simplify_time_limit=1)
     score, _, ans_size, distance = EED(
         answer_latex=ground_truth_latex,
         test_latex=model_latex,
-        scoring_parameters=[100, 10],
-        simplify_timeout=0.001,
+        eed_settings=eed_settings_timeout,
     )
 
     # When a timeout occurs, the answer size should be larger than the simplified size.
