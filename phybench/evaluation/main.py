@@ -16,7 +16,13 @@ from phybench.logging_config import setup_logging
 from phybench.path_resolver import PathResolver
 from phybench.settings import AppSettings, EvaluationEEDSettings
 
-from .expression_distance import EED, LaTeXError, SymPyError
+from .expression_distance import (
+    EED,
+    LaTeXError,
+    SymPyError,
+    clear_problem_context,
+    set_problem_context,
+)
 
 __all__: Final[list[str]] = [
     "evaluate",
@@ -76,9 +82,13 @@ def process_single_problem(
     try:
         t0 = time.perf_counter()
 
-        score, relative_distance, treesize, distance_num = EED(
-            right_ans, ai_ans, eed_settings=eed_settings, debug_mode=True
-        )
+        set_problem_context(problem_id)
+        try:
+            score, relative_distance, treesize, distance_num = EED(
+                right_ans, ai_ans, eed_settings=eed_settings, debug_mode=True
+            )
+        finally:
+            clear_problem_context()
         t1 = time.perf_counter()
         logger.info(
             f"Evaluated {model_name}. Problem id: {data['id']: >3}, Time: {t1 - t0:.2f}s"

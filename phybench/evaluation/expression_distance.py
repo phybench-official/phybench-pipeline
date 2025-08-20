@@ -47,6 +47,41 @@ class NodeType(str, Enum):
 
 NegativeInfinity: Final[sympy.Basic] = -sympy.oo
 
+# --- Minimal problem-id context for logging ---
+_CURRENT_PROBLEM_ID: int | None = None
+
+
+def set_problem_context(problem_id: int) -> None:
+    """Set current problem id for logging (best-effort, no behavior change)."""
+    global _CURRENT_PROBLEM_ID
+    _CURRENT_PROBLEM_ID = problem_id
+
+
+def clear_problem_context() -> None:
+    """Clear current problem id context."""
+    global _CURRENT_PROBLEM_ID
+    _CURRENT_PROBLEM_ID = None
+
+
+def _log_latex_convert_error(
+    side: str, exc: Exception, content: str, known: bool
+) -> None:
+    """Log a concise LaTeX conversion error entry.
+
+    Args:
+        side: "GT" or "GEN"
+        exc: caught exception
+        content: the LaTeX text that failed to convert
+        known: True for known parsing errors (SyntaxError/ValueError/TypeError), else False
+    """
+    pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
+    level = logger.warning if known else logger.error
+    kind = "known parsing error" if known else "UNEXPECTED error"
+    level(
+        f"Problem ID {pid}: LaTeX convert failed ({side}) - {kind}: {type(exc).__name__}: {exc} - {side}='{content}'"
+    )
+
+
 """
 Guide:
 You only need to use EED and install the following packages:
@@ -395,23 +430,31 @@ def EED(
 
     try:
         answer_exp = master_convert(answer_latex)
-        test_exp = master_convert(test_latex)
     except (SyntaxError, ValueError, TypeError) as e:
-        logger.warning(
-            f"Failed to convert latex due to a known parsing error: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
-        )
+        _log_latex_convert_error("GT", e, answer_latex, known=True)
         if debug_mode:
-            raise LaTeXError(
-                f"Fail to convert latex.\n GT:{answer_latex}\n GEN:{test_latex}"
-            ) from e
+            raise LaTeXError(f"Fail to convert latex (GT).\n GT:{answer_latex}") from e
         return 0, -1, -1, -1
     except Exception as e:
-        logger.error(
-            f"An UNEXPECTED error occurred during latex conversion: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
-        )
+        _log_latex_convert_error("GT", e, answer_latex, known=False)
         if debug_mode:
             raise LaTeXError(
-                "An unexpected error occurred during latex conversion."
+                "An unexpected error occurred during latex conversion (GT)."
+            ) from e
+        return 0, -1, -1, -1
+
+    try:
+        test_exp = master_convert(test_latex)
+    except (SyntaxError, ValueError, TypeError) as e:
+        _log_latex_convert_error("GEN", e, test_latex, known=True)
+        if debug_mode:
+            raise LaTeXError(f"Fail to convert latex (GEN).\n GEN:{test_latex}") from e
+        return 0, -1, -1, -1
+    except Exception as e:
+        _log_latex_convert_error("GEN", e, test_latex, known=False)
+        if debug_mode:
+            raise LaTeXError(
+                "An unexpected error occurred during latex conversion (GEN)."
             ) from e
         return 0, -1, -1, -1
 
