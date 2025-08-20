@@ -84,7 +84,7 @@ def _log_latex_convert_error(
     """Log a concise LaTeX conversion error entry.
 
     Args:
-        side: "GT" or "GEN"
+        side: "GT" or "model answer"
         exc: caught exception
         content: the LaTeX text that failed to convert
         known: True for known parsing errors (SyntaxError/ValueError/TypeError), else False
@@ -290,6 +290,10 @@ def time_equal(expr1: Any, expr2: Any, timeout: float) -> bool:
         result = equal_with_timeout(expr1, expr2, timeout)
         return result
     except TimeoutError:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
+        logger.warning(
+            f"Problem ID {pid}: Equality check timed out. threshold={timeout:.2f}s; fallback=False"
+        )
         return False
 
 
@@ -528,8 +532,9 @@ def EED(
             return 100, 0.0, 0, 0
 
     except (AttributeError, TypeError, ValueError) as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.warning(
-            f"Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
+            f"Problem ID {pid}: Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -537,8 +542,9 @@ def EED(
             ) from e
         return 0, -1, -1, -1
     except Exception as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.error(
-            f"An UNEXPECTED error occurred during expression simplification: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
+            f"Problem ID {pid}: UNEXPECTED error during expression simplification: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -552,8 +558,9 @@ def EED(
         set_tree_side("model answer")
         tree_test = sympy_to_tree(test_exp)
     except ValueError as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.warning(
-            f"Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', model answer='{test_latex}'"
+            f"Problem ID {pid}: Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -561,8 +568,9 @@ def EED(
             ) from e
         return 0, -1, -1, -1
     except Exception as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.error(
-            f"An UNEXPECTED error occurred during tree construction: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
+            f"Problem ID {pid}: UNEXPECTED error during tree construction: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -584,17 +592,19 @@ def EED(
             update_cost=lambda x, y: update_func(x, y, eed_settings),
         )
     except RecursionError as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.warning(
-            f"Failed to calculate distance due to recursion depth: {type(e).__name__}: {e}"
+            f"Problem ID {pid}: Failed to calculate distance due to recursion depth: {type(e).__name__}: {e}"
         )
         if debug_mode:
             raise DistError(
-                f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n GEN:{test_latex}"
+                f"Failed to calculate the distance between trees.\nGT:{answer_latex}\n model answer:{test_latex}"
             ) from e
         return 0, -1, calc_tree_size(tree_answer, eed_settings), -1
     except Exception as e:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.error(
-            f"An UNEXPECTED error occurred during distance calculation: {type(e).__name__}: {e}"
+            f"Problem ID {pid}: UNEXPECTED error during distance calculation: {type(e).__name__}: {e}"
         )
         if debug_mode:
             raise DistError(
