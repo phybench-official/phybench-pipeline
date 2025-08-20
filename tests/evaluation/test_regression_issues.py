@@ -1,3 +1,4 @@
+import pytest
 from phybench.evaluation.expression_distance import EED
 from phybench.settings import EvaluationEEDSettings
 
@@ -20,6 +21,7 @@ ground_truth_latex_713 = r"""
 model_latex_713 = r"\frac{(1 - \beta^2) E_1^2}{(E_1 - \beta \sqrt{E_1^2 - m_\tau^2 c^4} \cos\theta)^2 \sqrt{1 - \beta^2 \cos^2\theta}}"
 
 
+@pytest.mark.slow
 def test_issue_332_regression():
     """Tests for regression on issue 332."""
     eed_settings_332 = EvaluationEEDSettings(simplify_time_limit=300)
@@ -32,6 +34,7 @@ def test_issue_332_regression():
     assert round(distance, 1) == 110.4
 
 
+@pytest.mark.slow
 def test_issue_698_regression():
     """Tests for regression on issue 698."""
     score, _, ans_size, distance = EED(
@@ -43,6 +46,7 @@ def test_issue_698_regression():
     assert distance == 58.4
 
 
+@pytest.mark.slow
 def test_issue_713_regression():
     """Tests for regression on issue 713."""
     score, _, ans_size, distance = EED(

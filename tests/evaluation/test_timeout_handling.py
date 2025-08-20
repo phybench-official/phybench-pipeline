@@ -1,9 +1,11 @@
+import pytest
 from phybench.evaluation.expression_distance import EED
 from phybench.settings import EvaluationEEDSettings
 
 eed_settings = EvaluationEEDSettings()
 
 
+@pytest.mark.slow
 def test_timeout_handling():
     """Tests that the EED function correctly handles timeouts."""
 
