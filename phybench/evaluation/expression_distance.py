@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 from enum import Enum
+from time import perf_counter
 from typing import Any, Final, TypeVar, overload
 
 import sympy
@@ -16,6 +17,7 @@ from sympy import (
     Pow,
     Rational,
     Symbol,
+    count_ops,
     expand,
     posify,
     simplify,
@@ -49,6 +51,7 @@ NegativeInfinity: Final[sympy.Basic] = -sympy.oo
 
 # --- Minimal problem-id context for logging ---
 _CURRENT_PROBLEM_ID: int | None = None
+_CURRENT_TREE_SIDE: str | None = None
 
 
 def set_problem_context(problem_id: int) -> None:
@@ -61,6 +64,18 @@ def clear_problem_context() -> None:
     """Clear current problem id context."""
     global _CURRENT_PROBLEM_ID
     _CURRENT_PROBLEM_ID = None
+    clear_tree_side()
+
+
+def set_tree_side(side: str) -> None:
+    """Set which side is currently being transformed into a tree (for logging)."""
+    global _CURRENT_TREE_SIDE
+    _CURRENT_TREE_SIDE = side
+
+
+def clear_tree_side() -> None:
+    global _CURRENT_TREE_SIDE
+    _CURRENT_TREE_SIDE = None
 
 
 def _log_latex_convert_error(
@@ -235,12 +250,29 @@ def simplify_with_timeout(expr: Any, timeout: float) -> Any:
     return _simplify(expr)
 
 
-def time_simplify(expr: Any, timeout: float) -> Any:
+def time_simplify(
+    expr: Any,
+    timeout: float,
+    *,
+    side: str | None = None,
+    strategy: str = "sympy.simplify",
+) -> Any:
+    start = perf_counter()
     try:
         result = simplify_with_timeout(expr, timeout)
         return result
     except TimeoutError:
-        logger.warning(f"Simplification timed out for expression: {expr}")
+        elapsed = perf_counter() - start
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
+        size_chars = len(str(expr))
+        try:
+            ops = int(count_ops(expr))
+        except Exception:
+            ops = -1
+        which = side if side is not None else "unknown"
+        logger.warning(
+            f"Problem ID {pid}: Simplification timed out ({which}). Elapsed={elapsed:.2f}s, threshold={timeout:.2f}s, size={size_chars} chars, ops={ops}. Strategy={strategy}. Fallback=return-original"
+        )
         return expr
 
 
@@ -312,8 +344,15 @@ def sympy_to_tree(expr: Any) -> TreeNode:
         )
 
     else:
+        pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
+        side = _CURRENT_TREE_SIDE if _CURRENT_TREE_SIDE is not None else "unknown"
+        err_code = (
+            "unsupported_type_imaginary_unit"
+            if type(expr).__name__ == "ImaginaryUnit"
+            else "unsupported_sympy_type"
+        )
         logger.error(
-            f"Unsupported Sympy type: {type(expr).__name__}, Expression: {expr}"
+            f"Problem ID {pid}: Tree build failed ({side}) - {err_code}: Unsupported SymPy type: {type(expr).__name__}, subexpr={expr}"
         )
         raise ValueError(f"Unsupported SymPy type: {type(expr)}")
 
@@ -446,30 +485,38 @@ def EED(
     try:
         test_exp = master_convert(test_latex)
     except (SyntaxError, ValueError, TypeError) as e:
-        _log_latex_convert_error("GEN", e, test_latex, known=True)
-        if debug_mode:
-            raise LaTeXError(f"Fail to convert latex (GEN).\n GEN:{test_latex}") from e
-        return 0, -1, -1, -1
-    except Exception as e:
-        _log_latex_convert_error("GEN", e, test_latex, known=False)
+        _log_latex_convert_error("model answer", e, test_latex, known=True)
         if debug_mode:
             raise LaTeXError(
-                "An unexpected error occurred during latex conversion (GEN)."
+                f"Fail to convert latex (model answer).\n model answer:{test_latex}"
+            ) from e
+        return 0, -1, -1, -1
+    except Exception as e:
+        _log_latex_convert_error("model answer", e, test_latex, known=False)
+        if debug_mode:
+            raise LaTeXError(
+                "An unexpected error occurred during latex conversion (model answer)."
             ) from e
         return 0, -1, -1, -1
 
     try:
         answer_exp, rep1 = posify(answer_exp)
-        answer_exp = time_simplify(answer_exp, timeout=eed_settings.simplify_time_limit)
+        answer_exp = time_simplify(
+            answer_exp, timeout=eed_settings.simplify_time_limit, side="GT"
+        )
 
         test_exp, rep2 = posify(test_exp)
-        test_exp = time_simplify(test_exp, timeout=eed_settings.simplify_time_limit)
+        test_exp = time_simplify(
+            test_exp, timeout=eed_settings.simplify_time_limit, side="model answer"
+        )
 
         answer_exp = answer_exp.subs(rep1)
         test_exp = test_exp.subs(rep2)
 
         zero_exp = time_simplify(
-            expand(answer_exp - test_exp), timeout=eed_settings.simplify_time_limit
+            expand(answer_exp - test_exp),
+            timeout=eed_settings.simplify_time_limit,
+            side="combined",
         )
 
         if answer_exp == test_exp or zero_exp == 0:
@@ -482,7 +529,7 @@ def EED(
 
     except (AttributeError, TypeError, ValueError) as e:
         logger.warning(
-            f"Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+            f"Error during expression simplification, returning zero score: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -491,7 +538,7 @@ def EED(
         return 0, -1, -1, -1
     except Exception as e:
         logger.error(
-            f"An UNEXPECTED error occurred during expression simplification: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+            f"An UNEXPECTED error occurred during expression simplification: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
@@ -500,27 +547,30 @@ def EED(
         return 0, -1, -1, -1
 
     try:
+        set_tree_side("GT")
         tree_answer = sympy_to_tree(answer_exp)
+        set_tree_side("model answer")
         tree_test = sympy_to_tree(test_exp)
-
     except ValueError as e:
         logger.warning(
-            f"Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+            f"Failed to build expression tree, returning zero score: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
-                f"Failed to build the sympy expression tree.\nGT:{answer_exp}\nGEN:{test_exp}"
+                f"Failed to build the sympy expression tree.\nGT:{answer_exp}\nmodel answer:{test_exp}"
             ) from e
         return 0, -1, -1, -1
     except Exception as e:
         logger.error(
-            f"An UNEXPECTED error occurred during tree construction: {type(e).__name__}: {e} - GT='{answer_latex}', GEN='{test_latex}'"
+            f"An UNEXPECTED error occurred during tree construction: {type(e).__name__}: {e} - GT='{answer_latex}', model answer='{test_latex}'"
         )
         if debug_mode:
             raise SymPyError(
                 "An unexpected error occurred during tree construction."
             ) from e
         return 0, -1, -1, -1
+    finally:
+        clear_tree_side()
 
     try:
         distance = ext_distance(
