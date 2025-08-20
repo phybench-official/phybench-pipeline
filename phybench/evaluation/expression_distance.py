@@ -315,6 +315,7 @@ def sympy_to_tree(expr: Any, side: str | None = None) -> TreeNode:
         EulerNumber,
         Infinity,
         NegativeInfinity,
+        sympy.I,
     ):
         return TreeNode(label=f"{NodeType.NUMBER.value}_{expr}", children=[])
     elif isinstance(expr, Symbol):
