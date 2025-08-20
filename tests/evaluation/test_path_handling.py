@@ -147,7 +147,7 @@ class TestPathResolver(unittest.TestCase):
 
     def test_complex_placeholders(self) -> None:
         self.settings.evaluation.paths.output_file = (
-            "eval_{gt_file}_{api_caller_model}_{api_caller_output_file}.json"
+            "eval_{gt_file}_{model}_{api_caller_output_file}.json"
         )
         resolver = self.get_resolver()
         self.assertEqual(

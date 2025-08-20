@@ -77,7 +77,7 @@ suffix = "Please provide the solution in LaTeX format, ensuring that the final b
 # Directory for input ground truth JSON files.
 gt_dir = "data/ground_truth"
 # Ground truth filename template (without path; with or without .json)
-# Placeholders: {api_caller_input_file}, {api_caller_model}, {api_caller_output_file}
+# Placeholders: {api_caller_input_file}, {model}, {api_caller_output_file}
 gt_file = "test.json"
 # Directory for input model solution JSON files.
 model_answers_dir = "data/model_solutions"
@@ -87,7 +87,7 @@ model_answers_file = "test_gpt-4o.json"
 # Directory for output evaluation results JSON files.
 output_dir = "data/evaluation_results"
 # Output filename template for evaluation results (without path; with or without .json)
-# Placeholders: {gt_file}, {model_answers_file}, {api_caller_input_file}, {api_caller_model}, {api_caller_output_file}
+# Placeholders: {gt_file}, {model_answers_file}, {api_caller_input_file}, {model}, {api_caller_output_file}
 output_file = "test.json"
 
 [evaluation.eed]
