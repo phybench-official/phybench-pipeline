@@ -231,9 +231,11 @@ def evaluate(
 
     model_scores: dict[str, float] = {}
     model_nums: dict[str, int] = {}
+    model_correct: dict[str, int] = {}
     for name in model_list:
         model_scores[name] = 0.0
         model_nums[name] = 0
+        model_correct[name] = 0
 
     dist_data = []
     for result in successful_results:
@@ -246,6 +248,8 @@ def evaluate(
 
         model_scores[model] += score_i
         model_nums[model] += 1
+        if score_i == 100:
+            model_correct[model] += 1
 
         gt_dict[problem_id]["answer_size"] = max(
             tree_size, gt_dict[problem_id]["answer_size"]
@@ -280,10 +284,18 @@ def evaluate(
     output_table = []
     for model in model_scores:
         model_scores[model] = model_scores[model] / model_nums[model]
-        output_table.append([model, model_scores[model]])
+        accuracy = (
+            (model_correct[model] / model_nums[model]) * 100
+            if model_nums[model] > 0
+            else 0.0
+        )
+        output_table.append([model, model_scores[model], accuracy])
 
     s_opt = tabulate(
-        output_table, headers=["Model", "Score"], tablefmt="fancy_grid", floatfmt=".2f"
+        output_table,
+        headers=["Model", "Score", "Accuracy (%)"],
+        tablefmt="fancy_grid",
+        floatfmt=".2f",
     )
     logger.info(f"Evaluation results:\n{s_opt}")
 
