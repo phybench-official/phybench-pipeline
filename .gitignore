@@ -14,7 +14,7 @@ __pycache__/
 *$py.class
 
 # Configuration with sensitive data
-config.toml
+config*.toml
 
 # Output and result files
 *.json
