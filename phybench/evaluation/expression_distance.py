@@ -51,7 +51,6 @@ NegativeInfinity: Final[sympy.Basic] = -sympy.oo
 
 # --- Minimal problem-id context for logging ---
 _CURRENT_PROBLEM_ID: int | None = None
-_CURRENT_TREE_SIDE: str | None = None
 
 
 def set_problem_context(problem_id: int) -> None:
@@ -64,18 +63,6 @@ def clear_problem_context() -> None:
     """Clear current problem id context."""
     global _CURRENT_PROBLEM_ID
     _CURRENT_PROBLEM_ID = None
-    clear_tree_side()
-
-
-def set_tree_side(side: str) -> None:
-    """Set which side is currently being transformed into a tree (for logging)."""
-    global _CURRENT_TREE_SIDE
-    _CURRENT_TREE_SIDE = side
-
-
-def clear_tree_side() -> None:
-    global _CURRENT_TREE_SIDE
-    _CURRENT_TREE_SIDE = None
 
 
 def _log_latex_convert_error(
@@ -297,7 +284,7 @@ def time_equal(expr1: Any, expr2: Any, timeout: float) -> bool:
         return False
 
 
-def sympy_to_tree(expr: Any) -> TreeNode:
+def sympy_to_tree(expr: Any, side: str | None = None) -> TreeNode:
     """
     Convert a SymPy expression into a tree structure.
     This function takes a SymPy expression and recursively converts it into a tree
@@ -336,27 +323,27 @@ def sympy_to_tree(expr: Any) -> TreeNode:
     # Binary operators
     elif isinstance(expr, Add | Mul | Pow):
         op_name = type(expr).__name__
-        children = [sympy_to_tree(arg) for arg in expr.args]
+        children = [sympy_to_tree(arg, side=side) for arg in expr.args]
         return TreeNode(label=f"{NodeType.OPERATOR.value}_{op_name}", children=children)
 
     # Functions
     elif isinstance(expr, Function):
         func_name = expr.func.__name__
-        children = [sympy_to_tree(arg) for arg in expr.args]
+        children = [sympy_to_tree(arg, side=side) for arg in expr.args]
         return TreeNode(
             label=f"{NodeType.FUNCTION.value}_{func_name}", children=children
         )
 
     else:
         pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
-        side = _CURRENT_TREE_SIDE if _CURRENT_TREE_SIDE is not None else "unknown"
+        which = side if side is not None else "unknown"
         err_code = (
             "unsupported_type_imaginary_unit"
             if type(expr).__name__ == "ImaginaryUnit"
             else "unsupported_sympy_type"
         )
         logger.error(
-            f"Problem ID {pid}: Tree build failed ({side}) - {err_code}: Unsupported SymPy type: {type(expr).__name__}, subexpr={expr}"
+            f"Problem ID {pid}: Tree build failed ({which}) - {err_code}: Unsupported SymPy type: {type(expr).__name__}, subexpr={expr}"
         )
         raise ValueError(f"Unsupported SymPy type: {type(expr)}")
 
@@ -553,10 +540,8 @@ def EED(
         return 0, -1, -1, -1
 
     try:
-        set_tree_side("GT")
-        tree_answer = sympy_to_tree(answer_exp)
-        set_tree_side("model answer")
-        tree_test = sympy_to_tree(test_exp)
+        tree_answer = sympy_to_tree(answer_exp, side="GT")
+        tree_test = sympy_to_tree(test_exp, side="model answer")
     except ValueError as e:
         pid = _CURRENT_PROBLEM_ID if _CURRENT_PROBLEM_ID is not None else "unknown"
         logger.warning(
@@ -577,8 +562,6 @@ def EED(
                 "An unexpected error occurred during tree construction."
             ) from e
         return 0, -1, -1, -1
-    finally:
-        clear_tree_side()
 
     try:
         distance = ext_distance(
