@@ -237,7 +237,7 @@ def simplify_with_timeout(expr: Any, timeout: float) -> Any:
     return _simplify(expr)
 
 
-def time_simplify(
+def try_simplify_with_timeout(
     expr: Any,
     timeout: float,
     *,
@@ -272,7 +272,7 @@ def equal_with_timeout(expr1: Any, expr2: Any, timeout: float) -> bool:
     return bool(result) if result is not None else False
 
 
-def time_equal(expr1: Any, expr2: Any, timeout: float) -> bool:
+def try_equals_with_timeout(expr1: Any, expr2: Any, timeout: float) -> bool:
     try:
         result = equal_with_timeout(expr1, expr2, timeout)
         return result
@@ -493,19 +493,19 @@ def EED(
 
     try:
         answer_exp, rep1 = posify(answer_exp)
-        answer_exp = time_simplify(
+        answer_exp = try_simplify_with_timeout(
             answer_exp, timeout=eed_settings.simplify_time_limit, side="GT"
         )
 
         test_exp, rep2 = posify(test_exp)
-        test_exp = time_simplify(
+        test_exp = try_simplify_with_timeout(
             test_exp, timeout=eed_settings.simplify_time_limit, side="model answer"
         )
 
         answer_exp = answer_exp.subs(rep1)
         test_exp = test_exp.subs(rep2)
 
-        zero_exp = time_simplify(
+        zero_exp = try_simplify_with_timeout(
             expand(answer_exp - test_exp),
             timeout=eed_settings.simplify_time_limit,
             side="combined",
@@ -514,7 +514,7 @@ def EED(
         if answer_exp == test_exp or zero_exp == 0:
             return 100, 0.0, 0, 0
 
-        if time_equal(
+        if try_equals_with_timeout(
             answer_exp, test_exp, timeout=eed_settings.equals_time_limit
         ):  # equality check with a shorter timeout
             return 100, 0.0, 0, 0
