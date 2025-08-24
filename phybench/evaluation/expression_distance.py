@@ -31,6 +31,9 @@ from sympy import (
 from sympy import (
     pi as Pi,
 )
+from sympy import (
+    zoo as ComplexInfinity,
+)
 
 from phybench.settings import EvaluationEEDSettings
 
@@ -316,6 +319,7 @@ def sympy_to_tree(expr: Any, side: str | None = None) -> TreeNode:
         Infinity,
         NegativeInfinity,
         sympy.I,
+        ComplexInfinity,
     ):
         return TreeNode(label=f"{NodeType.NUMBER.value}_{expr}", children=[])
     elif isinstance(expr, Symbol):
