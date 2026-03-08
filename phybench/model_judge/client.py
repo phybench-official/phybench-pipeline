@@ -21,19 +21,36 @@ class SolutionItem(BaseModel):
 class GroundTruthItem(BaseModel):
     id: int
     content: str          # problem statement
+    solution: str = ""    # reference solution process
     answer: str           # reference answer
 
 
 def parse_judge_response(response_text: str) -> dict[str, Any]:
     """Extract JSON from judge LLM response. Falls back to zero scores on failure."""
-    match = re.search(r'\{[^{}]*\}', response_text, re.DOTALL)
+    # Remove markdown code blocks if present
+    text = response_text.strip()
+    if text.startswith("```"):
+        # Remove ```json or ``` at start and ``` at end
+        text = re.sub(r'^```(?:json)?\s*', '', text)
+        text = re.sub(r'\s*```$', '', text)
+
+    # Try to find JSON object with proper nesting support
+    match = re.search(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', text, re.DOTALL)
     if match:
         try:
             return json.loads(match.group())
         except json.JSONDecodeError:
             pass
+
+    # Fallback: try to parse the entire text as JSON
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
     logger.warning(f"Could not parse judge response as JSON: {response_text[:200]}")
     return {
+        "answer_accuracy_score": 0,
         "physical_reasoning_score": 0,
         "math_derivation_score": 0,
         "completeness_score": 0,
@@ -54,6 +71,7 @@ async def judge_solution(
     """Call judge LLM for one solution. Returns result dict."""
     user_prompt = (
         f"## Problem\n{gt.content}\n\n"
+        f"## Reference Solution\n{gt.solution}\n\n"
         f"## Reference Answer\n{gt.answer}\n\n"
         f"## Student Solution\n{solution.model_solution}"
     )
@@ -87,6 +105,7 @@ async def judge_solution(
         "id": solution.id,
         "model": solution.model,
         "judge_model": judge_model,
+        "answer_accuracy_score": 0,
         "physical_reasoning_score": 0,
         "math_derivation_score": 0,
         "completeness_score": 0,

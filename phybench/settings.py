@@ -105,6 +105,52 @@ class EvaluationSettings(BaseModel):
     execution: EvaluationExecutionSettings
 
 
+# --- Model Judge Settings ---
+
+
+class ModelJudgeModelSettings(BaseModel):
+    judge_model: str = "gpt-4o"
+
+
+class ModelJudgePathsSettings(BaseModel):
+    model_solutions_dir: str = "data/model_solutions"
+    model_solutions_file: str = "{input_file}_{model}"
+    gt_dir: str = "data/ground_truth"
+    gt_file: str = "test.json"
+    output_dir: str = "data/judge_results"
+    output_file: str = "{input_file}_{model}_judge"
+
+
+class ModelJudgeExecutionSettings(BaseModel):
+    num_consumers: int = 5
+    chat_timeout: int = 300
+    max_retries: int = 3
+    max_task_queue_size: int = 100
+
+
+class ModelJudgePromptSettings(BaseModel):
+    system_prompt: str = """Harsh physics grader: Compare student vs reference solution strictly.
+
+Score 0-100 on:
+- Answer (50%): Match reference
+- Physics (25%): Match reference
+- Math (15%): Match reference
+- Complete (10%): Match reference
+
+Rules: Deduct for deviations. Wrong answer ≤40. Different approach ≤50. Be harsh.
+
+Overall = 0.5×answer + 0.25×physics + 0.15×math + 0.1×complete
+
+JSON: {"answer_accuracy_score": <int>, "physical_reasoning_score": <int>, "math_derivation_score": <int>, "completeness_score": <int>, "overall_score": <int>, "commentary": "<text>"}"""
+
+
+class ModelJudgeSettings(BaseModel):
+    model: ModelJudgeModelSettings
+    paths: ModelJudgePathsSettings
+    execution: ModelJudgeExecutionSettings
+    prompt: ModelJudgePromptSettings
+
+
 # --- Main Settings ---
 
 
@@ -113,3 +159,4 @@ class AppSettings(BaseModel):
     logging: LoggingSettings
     api_caller: APICallerSettings
     evaluation: EvaluationSettings
+    model_judge: ModelJudgeSettings

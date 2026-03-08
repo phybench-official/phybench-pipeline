@@ -1,10 +1,12 @@
 # Model Judge
 
-LLM-as-Judge evaluation module for PhyBench Pipeline. Scores the **reasoning process** of model solutions using a judge LLM, complementing the numeric EED scoring in the `evaluation` module.
+LLM-as-Judge evaluation module for PhyBench Pipeline. Evaluates both **answer accuracy** and **solution process quality** by comparing student solutions against reference solutions, complementing the numeric EED scoring in the `evaluation` module.
 
 ## Overview
 
-While the `evaluation` module compares final answers using Expression Edit Distance (EED), `model_judge` evaluates the *quality of the solution process* — physical reasoning, mathematical derivation, and completeness — by prompting a capable judge LLM.
+While the `evaluation` module compares final answers using Expression Edit Distance (EED), `model_judge` evaluates:
+1. **Answer accuracy** (most important, 50% weight) — does the final answer match the reference?
+2. **Solution process quality** (50% weight) — physical reasoning, mathematical derivation, and completeness compared to the reference solution
 
 ### Pipeline Position
 
@@ -43,12 +45,12 @@ judge_model = "claude-opus-4-6"   # Must be listed in a [[providers]] block
 
 Recommended judge models (in order of preference):
 
-| Model | Notes |
-|-------|-------|
-| `claude-opus-4-6` | Best reasoning quality, recommended default |
-| `claude-sonnet-4-6` | Faster, slightly lower quality |
-| `gpt-4o` | Good alternative if using OpenAI provider |
-| `o3-mini` | Strong physics reasoning, higher cost |
+| Model               | Notes                                       |
+| ------------------- | ------------------------------------------- |
+| `claude-opus-4-6`   | Best reasoning quality, recommended default |
+| `claude-sonnet-4-6` | Faster, slightly lower quality              |
+| `gpt-4o`            | Good alternative if using OpenAI provider   |
+| `o3-mini`           | Strong physics reasoning, higher cost       |
 
 ### `[model_judge.paths]`
 
@@ -74,32 +76,37 @@ max_task_queue_size = 100
 
 ### `[model_judge.prompt]`
 
-The system prompt is the core of the judge. The default prompt instructs the judge to evaluate three dimensions and respond in strict JSON:
+The system prompt is the core of the judge. The prompt uses strict evaluation criteria with a harsh grading philosophy. The judge model (default: gpt-4o) evaluates four dimensions by comparing against reference solutions, with answer accuracy as the most important criterion.
 
 ```toml
 [model_judge.prompt]
-system_prompt = """You are an expert physics professor evaluating a student's solution to a physics problem.
-Your task is to assess the quality of the reasoning process, not just the final answer.
-Evaluate the solution on three dimensions:
-1. Physical Reasoning (0-100): Correct application of physics principles, laws, and concepts.
-2. Mathematical Derivation (0-100): Correctness and rigor of mathematical steps and algebra.
-3. Completeness (0-100): Whether all necessary steps are shown and the solution is well-structured.
+system_prompt = """Harsh physics grader: Compare student vs reference solution strictly.
 
-Respond ONLY with a valid JSON object in this exact format:
-{
-  "physical_reasoning_score": <int 0-100>,
-  "math_derivation_score": <int 0-100>,
-  "completeness_score": <int 0-100>,
-  "overall_score": <int 0-100>,
-  "commentary": "<concise evaluation in 2-4 sentences>"
-}"""
+Score 0-100 on:
+- Answer (50%): Match reference
+- Physics (25%): Match reference
+- Math (15%): Match reference
+- Complete (10%): Match reference
+
+Rules: Deduct for deviations. Wrong answer ≤40. Different approach ≤70. Be harsh.
+
+Overall = 0.5×answer + 0.25×physics + 0.15×math + 0.1×complete
+
+JSON: {"answer_accuracy_score": <int>, "physical_reasoning_score": <int>, "math_derivation_score": <int>, "completeness_score": <int>, "overall_score": <int>, "commentary": "<text>"}"""
 ```
 
 **Prompt design notes:**
-- The user turn always includes: problem statement, reference answer, and the full model solution text.
+
+- The user turn includes: problem statement, **reference solution process**, reference answer, and student solution.
 - `temperature=0` is hardcoded for reproducibility.
-- The judge is explicitly told to evaluate *process*, not just whether the final answer matches.
+- The **judge model (gpt-4o) is responsible for determining answer correctness** by comparing mathematical equivalence.
+- **Answer accuracy is weighted at 50%**, making it the most important criterion.
+- The prompt uses a **harsh grading philosophy** with strict deductions for all deviations from reference.
+- Wrong answers cap the overall_score at 40.
+- Different approaches (even if valid) are capped at 50 to ensure reference-based evaluation.
 - JSON-only output format prevents free-text contamination and enables reliable parsing.
+- **Extremely concise**: Only 546 characters, making it easy to understand and maintain.
+
 
 ### Full prompt structure (both turns)
 
@@ -113,6 +120,9 @@ Every judge call sends exactly two messages:
 ## Problem
 <problem statement from ground truth>
 
+## Reference Solution
+<reference solution process from ground truth>
+
 ## Reference Answer
 <reference answer from ground truth>
 
@@ -120,13 +130,14 @@ Every judge call sends exactly two messages:
 <full model_solution text from api_caller output>
 ```
 
-The judge sees the complete solution process (not just the boxed final answer), which is what enables process-level scoring.
+The judge sees both the reference solution process and the student's complete solution, enabling comparison-based evaluation with emphasis on answer accuracy.
 
 ## Input / Output Format
 
 ### Input: model_solutions JSON (from `api_caller`)
 
 Each item must have:
+
 ```json
 {
   "id": 42,
@@ -139,10 +150,12 @@ Each item must have:
 ### Input: ground truth JSON
 
 Each item must have:
+
 ```json
 {
   "id": 42,
   "content": "<problem statement>",
+  "solution": "<reference solution process>",
   "answer": "$$\\frac{1}{2}mv^2$$"
 }
 ```
@@ -150,30 +163,44 @@ Each item must have:
 ### Output: judge_results JSON
 
 Each item written to `data/judge_results/`:
+
 ```json
 {
   "id": 42,
   "model": "gpt-4o",
   "judge_model": "claude-opus-4-6",
+  "answer_accuracy_score": 95,
   "physical_reasoning_score": 85,
   "math_derivation_score": 90,
   "completeness_score": 75,
-  "overall_score": 83,
-  "commentary": "The student correctly identified the relevant conservation law and applied it properly. The algebraic manipulation is correct but an intermediate step is skipped. The solution would benefit from explicitly stating boundary conditions.",
+  "overall_score": 88,
+  "commentary": "The student's answer matches the reference answer. The solution correctly applies conservation of energy. Minor: one intermediate step could be more explicit.",
   "time_taken": 4.21
 }
 ```
 
 ## Scoring Rubric
 
-| Dimension | What it measures |
-|-----------|-----------------|
-| `physical_reasoning_score` | Correct identification and application of physics laws, principles, and physical intuition |
-| `math_derivation_score` | Algebraic correctness, valid manipulations, no mathematical errors |
-| `completeness_score` | All steps shown, solution is self-contained, no unjustified leaps |
-| `overall_score` | Holistic quality — judge's integrated assessment (not a simple average) |
+| Dimension                  | Weight | What it measures                                                                           |
+| -------------------------- | ------ | ------------------------------------------------------------------------------------------ |
+| `answer_accuracy_score`    | 50%    | **MOST IMPORTANT**: Does the final answer match the reference answer? |
+| `physical_reasoning_score` | 25%    | Does the physics approach match the reference solution? |
+| `math_derivation_score`    | 15%    | Do the mathematical steps match the reference derivation? |
+| `completeness_score`       | 10%    | Are all reference elements present in the solution? |
+| `overall_score`            | 100%   | Weighted combination: 50% answer + 25% physics + 15% math + 10% completeness |
 
-Scores are integers 0–100. A score of 0 means completely wrong or missing; 100 means flawless.
+Scores are integers 0–100. **Strict** scoring rules:
+- **Wrong final answer → overall_score ≤ 40**
+- Correct answer but different approach → overall_score ≤ 50
+- Deduct points for all deviations from reference
+- High scores require close match with reference
+
+### Evaluation Philosophy
+
+- Solutions must match the reference in both answer and approach to score well
+- Any deviation from reference results in deductions
+- Different approaches (even if valid) score lower to ensure reference-based evaluation
+- Harsh grading: default to moderate-low scores unless solution closely matches reference
 
 ## Reproducibility Notes
 
